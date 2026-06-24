@@ -149,6 +149,20 @@
   .act-mail{color:var(--primary-ink)!important;border-color:var(--primary-soft)!important}
   .act-mail:hover{background:var(--primary-soft)!important}
   .act-done{color:var(--ink-3)}
+  th.col-check,td.col-check{width:40px;padding-right:0}
+  .row-check,#selAll{width:16px;height:16px;accent-color:var(--primary);cursor:pointer;display:block}
+  tr.row-sel{background:var(--primary-soft)!important}
+  .bulk-bar{display:none;align-items:center;gap:9px;flex-wrap:wrap;background:var(--ink);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .bulk-count{font-weight:500;font-size:13.5px;margin-right:4px}
+  .bulk-count b{font-family:var(--display);font-weight:700;font-size:15px}
+  .bulk-bar select{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 11px;font-weight:600;font-size:12.5px;cursor:pointer;outline:none}
+  .bulk-bar select option{color:var(--ink)}
+  .bulk-btn{background:rgba(255,255,255,.14);color:#fff;border-radius:8px;padding:7px 12px;font-weight:600;font-size:12.5px;transition:.13s}
+  .bulk-btn:hover{background:rgba(255,255,255,.26)}
+  .bulk-btn.danger{background:rgba(229,72,77,.92)}
+  .bulk-btn.danger:hover{background:var(--red)}
+  .bulk-btn.ghost{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.28)}
+  .bulk-btn.ghost:hover{background:rgba(255,255,255,.12)}
 
   /* Action cards (Heute) */
   .queue{display:flex;flex-direction:column;gap:12px}
@@ -358,6 +372,14 @@
   </div>
 </div>
 
+<div class="modal-ov" id="actionModal">
+  <div class="modal" style="width:460px">
+    <div class="modal-head"><h3 id="actionTitle"></h3></div>
+    <div class="modal-body" id="actionBody"></div>
+    <div class="modal-foot"><button class="btn btn-ghost" id="actionCancel">Abbrechen</button><button class="btn btn-primary" id="actionConfirm">Übernehmen</button></div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -435,7 +457,21 @@ function doEmail(id,tplId){const c=get(id);if(!c)return;
   save();toast(c.email?'E-Mail-Entwurf geöffnet':'Als E-Mail markiert','ok');rerender();
 }
 function doReplied(id){const c=get(id);if(!c)return;c.repliedAt=Date.now();c.stage='geantwortet';c.nextAction=null;c.nextActionType=null;logAdd(c,'Hat geantwortet');save();toast('Als „geantwortet" markiert','ok');rerender();}
-function setStage(id,st){const c=get(id);if(!c)return;c.stage=st;if(TERMINAL.includes(st)&&st!=='geantwortet'){c.nextAction=null;c.nextActionType=null;}logAdd(c,'Status: '+STAGES[st].label);save();rerender();}
+function applyStage(c,st){
+  c.stage=st;
+  if(st==='neu'){c.nextAction=null;c.nextActionType=null;c.linkedinAt=null;c.vernetztAt=null;c.emailCount=0;c.lastEmailAt=null;c.repliedAt=null;logAdd(c,'Auf „Neu" zurückgesetzt');}
+  else if(st==='geantwortet'){c.repliedAt=c.repliedAt||Date.now();c.nextAction=null;c.nextActionType=null;logAdd(c,'Status: Geantwortet');}
+  else if(TERMINAL.includes(st)){c.nextAction=null;c.nextActionType=null;logAdd(c,'Status: '+STAGES[st].label);}
+  else logAdd(c,'Status: '+STAGES[st].label);
+}
+function setStage(id,st){const c=get(id);if(!c)return;applyStage(c,st);save();rerender();}
+function setNextAction(id,date,type){const c=get(id);if(!c)return;
+  if(date){c.nextAction=date;c.nextActionType=(type||'').trim()||'Manuelle Aufgabe';logAdd(c,'Nächste Aktion: '+fmtDate(date)+' · '+c.nextActionType);}
+  else{c.nextAction=null;c.nextActionType=null;logAdd(c,'Nächste Aktion entfernt');}
+  save();toast('Nächste Aktion aktualisiert','ok');rerender();}
+function naPreset(id,n){const d=$('#naDate');if(d)d.value=addDaysISO(todayISO(),n);}
+function saveNA(id){const d=$('#naDate'),t=$('#naType');setNextAction(id,d?d.value:null,t?t.value:'');}
+function clearNA(id){setNextAction(id,null);}
 function snooze(id,n){const c=get(id);if(!c)return;const base=c.nextAction&&c.nextAction>todayISO()?c.nextAction:todayISO();c.nextAction=addDaysISO(base,n);logAdd(c,`Erinnerung um ${n} Tage verschoben`);save();toast(`Verschoben auf ${fmtDate(c.nextAction)}`,'ok');rerender();}
 function get(id){return state.contacts.find(c=>c.id===id);}
 
@@ -459,6 +495,7 @@ function stats(){
 
 /* ============ Render ============ */
 let activeView='dashboard',panelId=null;
+let selected=new Set(),lastVisibleIds=[];
 let filters={q:'',branche:'',stage:'',due:false};
 
 function rerender(){renderNav();render();if(panelId&&get(panelId))openPanel(panelId,true);}
@@ -561,6 +598,7 @@ function qcard(c){
 }
 
 function viewKontakte(){
+  selected=new Set([...selected].filter(id=>get(id)));
   const branchen=[...new Set(state.contacts.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
   let list=state.contacts.slice();
   if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche].some(v=>(v||'').toLowerCase().includes(q)));}
@@ -568,9 +606,11 @@ function viewKontakte(){
   if(filters.stage)list=list.filter(c=>c.stage===filters.stage);
   if(filters.due)list=list.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future');
   list.sort((a,b)=>{const da=a.nextAction||'9999',db=b.nextAction||'9999';return da<db?-1:da>db?1:0;});
+  lastVisibleIds=list.map(c=>c.id);
 
   const rows=list.map(c=>{const ds=dueState(c.nextAction);
-    return `<tr>
+    return `<tr data-id="${c.id}" class="${selected.has(c.id)?'row-sel':''}">
+      <td class="col-check"><input type="checkbox" class="row-check" data-id="${c.id}" ${selected.has(c.id)?'checked':''}></td>
       <td><div class="cell-name" onclick="openPanel('${c.id}')">${esc(fullName(c))}</div>${c.position?`<div class="cell-sub">${esc(c.position)}</div>`:''}</td>
       <td class="cell-comp">${esc(c.unternehmen||'—')}</td>
       <td>${esc(c.branche||'—')}</td>
@@ -583,19 +623,38 @@ function viewKontakte(){
       </div></td>
     </tr>`;}).join('');
 
+  const bulkBar=`<div class="bulk-bar" id="bulkBar">
+    <span class="bulk-count" id="bulkCount"><b>0</b> ausgewählt</span>
+    <select id="bulkStage"><option value="">Status setzen…</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select>
+    <button class="bulk-btn" id="bulkNote">Notiz anhängen</button>
+    <button class="bulk-btn" id="bulkNext">Nächste Aktion</button>
+    <button class="bulk-btn danger" id="bulkDelete">Löschen</button>
+    <button class="bulk-btn ghost" id="bulkClear">Auswahl aufheben</button>
+  </div>`;
+
   return `<div class="toolbar">
     <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="searchInput" placeholder="Name, Unternehmen, E-Mail…" value="${esc(filters.q)}"></div>
     <select class="filter" id="filterBranche"><option value="">Alle Branchen</option>${branchen.map(b=>`<option ${filters.branche===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
     <select class="filter" id="filterStage"><option value="">Alle Status</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}" ${filters.stage===k?'selected':''}>${v.label}</option>`).join('')}</select>
-    <button class="btn btn-ghost ${filters.due?'':''}" id="filterDue" style="${filters.due?'border-color:var(--amber);color:var(--amber);background:var(--amber-soft)':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>Nur fällig</button>
+    <button class="btn btn-ghost" id="filterDue" style="${filters.due?'border-color:var(--amber);color:var(--amber);background:var(--amber-soft)':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>Nur fällig</button>
     <button class="btn btn-ghost" onclick="openManual()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Kontakt</button>
   </div>
+  ${bulkBar}
   <div class="tbl-wrap"><table>
-    <thead><tr><th>Name</th><th>Unternehmen</th><th>Branche</th><th>Status</th><th>Nächste Aktion</th><th style="text-align:right">Aktionen</th></tr></thead>
-    <tbody>${rows||`<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
+    <thead><tr><th class="col-check"><input type="checkbox" id="selAll"></th><th>Name</th><th>Unternehmen</th><th>Branche</th><th>Status</th><th>Nächste Aktion</th><th style="text-align:right">Aktionen</th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="7" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
   </table></div>
   <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${state.contacts.length} Kontakten</div>`;
 }
+function selectedContacts(){return state.contacts.filter(c=>selected.has(c.id));}
+function updateBulkUI(){const bar=$('#bulkBar');if(!bar)return;const n=selected.size;bar.style.display=n?'flex':'none';
+  const cnt=$('#bulkCount');if(cnt)cnt.innerHTML=`<b>${n}</b> ausgewählt`;
+  const sa=$('#selAll');if(sa){const vis=lastVisibleIds,sv=vis.filter(id=>selected.has(id)).length;sa.checked=vis.length>0&&sv===vis.length;sa.indeterminate=sv>0&&sv<vis.length;}
+  document.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('row-sel',selected.has(tr.dataset.id)));}
+function bulkStageApply(st){if(!st||!selected.size)return;const n=selected.size;selectedContacts().forEach(c=>applyStage(c,st));save();render();toast(`Status für ${n} Kontakte gesetzt`,'ok');}
+function bulkDelete(){if(!selected.size)return;if(!confirm(`${selected.size} Kontakt(e) wirklich löschen?`))return;state.contacts=state.contacts.filter(c=>!selected.has(c.id));selected.clear();save();render();toast('Kontakte gelöscht','ok');}
+function bulkNote(){if(!selected.size)return;const n=selected.size;openAction('Notiz anhängen',`<div class="field"><label>Wird an die Notizen von ${n} Kontakt(en) angehängt</label><textarea id="actText" style="min-height:96px" placeholder="Text eingeben…"></textarea></div>`,()=>{const t=($('#actText').value||'').trim();if(!t){toast('Bitte Text eingeben','warn');return false;}selectedContacts().forEach(c=>{c.notizen=(c.notizen?c.notizen+'\n':'')+t;logAdd(c,'Notiz ergänzt (Massenbearbeitung)');});save();render();toast(`Notiz zu ${n} Kontakten hinzugefügt`,'ok');},'Anhängen');}
+function bulkNext(){if(!selected.size)return;const n=selected.size;openAction('Nächste Aktion setzen',`<div class="grid-fld"><div class="field"><label>Datum</label><input type="date" id="actDate" value="${todayISO()}"></div><div class="field"><label>Aufgabe</label><input id="actType" placeholder="z. B. E-Mail senden"></div></div><div style="font-size:12px;color:var(--ink-3);margin-top:4px">Gilt für ${n} ausgewählte Kontakte.</div>`,()=>{const d=$('#actDate').value;if(!d){toast('Bitte Datum wählen','warn');return false;}const ty=($('#actType').value||'').trim()||'Manuelle Aufgabe';selectedContacts().forEach(c=>{c.nextAction=d;c.nextActionType=ty;logAdd(c,'Nächste Aktion gesetzt: '+ty);});save();render();toast(`Nächste Aktion für ${n} Kontakte gesetzt`,'ok');},'Setzen');}
 
 function viewVorlagen(){
   const cards=state.templates.map(t=>`<div class="tpl-card" data-tid="${t.id}">
@@ -654,7 +713,17 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
           <button class="btn btn-ghost" onclick="doReplied('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.5 8.5 0 0 1-12.5 7.5L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z"/></svg>Hat geantwortet</button>
         </div>
         ${emailTpls.length>1?`<div class="field" style="margin-top:10px"><label>E-Mail-Vorlage</label><select id="panelTpl">${emailTpls.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>`:''}
-        ${c.nextAction?`<div style="margin-top:12px;padding:11px 13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:10px;font-size:13px"><span class="due-pill ${dueState(c.nextAction)==='over'?'due-over':dueState(c.nextAction)==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><span style="font-weight:600">${esc(c.nextActionType||'')}</span><button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="snooze('${id}',5)">+5T</button></div>`:''}
+      </div>
+
+      <div><div class="psec-title">Nächste Aktion</div>
+        <div class="grid-fld"><div class="field"><label>Datum</label><input type="date" id="naDate" value="${c.nextAction||''}"></div><div class="field"><label>Aufgabe</label><input id="naType" value="${esc(c.nextActionType||'')}" placeholder="z. B. E-Mail senden"></div></div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-sm btn-ghost" onclick="naPreset('${id}',2)">+2 Tage</button>
+          <button class="btn btn-sm btn-ghost" onclick="naPreset('${id}',3)">+3 Tage</button>
+          <button class="btn btn-sm btn-ghost" onclick="naPreset('${id}',5)">+5 Tage</button>
+          <button class="btn btn-sm btn-primary" onclick="saveNA('${id}')">Aufgabe speichern</button>
+          ${c.nextAction?`<button class="btn btn-sm btn-ghost" style="color:var(--red)" onclick="clearNA('${id}')">Entfernen</button>`:''}
+        </div>
       </div>
 
       <div><div class="psec-title">Status setzen</div><div class="stage-pick">${stageOpts}</div></div>
@@ -845,6 +914,11 @@ function download(name,content){const blob=new Blob([content],{type:'text/csv;ch
 function openImport(){pendingImport=null;renderImportStart();$('#importModal').classList.add('open');}
 function closeImport(){$('#importModal').classList.remove('open');pendingImport=null;}
 
+/* ============ Generic action modal ============ */
+let _actionConfirm=null;
+function openAction(title,body,onConfirm,label){$('#actionTitle').textContent=title;$('#actionBody').innerHTML=body;$('#actionConfirm').textContent=label||'Übernehmen';_actionConfirm=onConfirm;$('#actionModal').classList.add('open');}
+function closeAction(){$('#actionModal').classList.remove('open');_actionConfirm=null;}
+
 /* ============ Clipboard / toast ============ */
 function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));}else fallbackCopy(text);}
 function fallbackCopy(text){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);}
@@ -856,16 +930,27 @@ function bindContent(){
   const fb=$('#filterBranche');if(fb)fb.onchange=e=>{filters.branche=e.target.value;render();};
   const fs=$('#filterStage');if(fs)fs.onchange=e=>{filters.stage=e.target.value;render();};
   const fd=$('#filterDue');if(fd)fd.onclick=()=>{filters.due=!filters.due;render();};
+  // bulk selection
+  const sa=$('#selAll');if(sa)sa.onchange=e=>{if(e.target.checked)lastVisibleIds.forEach(id=>selected.add(id));else lastVisibleIds.forEach(id=>selected.delete(id));render();};
+  document.querySelectorAll('.row-check').forEach(cb=>cb.onchange=e=>{const id=e.target.dataset.id;if(e.target.checked)selected.add(id);else selected.delete(id);updateBulkUI();});
+  const bst=$('#bulkStage');if(bst)bst.onchange=e=>{bulkStageApply(e.target.value);};
+  const bn=$('#bulkNote');if(bn)bn.onclick=bulkNote;
+  const bx=$('#bulkNext');if(bx)bx.onclick=bulkNext;
+  const bd=$('#bulkDelete');if(bd)bd.onclick=bulkDelete;
+  const bc=$('#bulkClear');if(bc)bc.onclick=()=>{selected.clear();render();};
+  updateBulkUI();
 }
 document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>go(b.dataset.view));
 $('#btnImport').onclick=openImport;$('#btnExport').onclick=exportCSV;
 $('#overlay').onclick=closePanel;
 $('#importCancel').onclick=closeImport;$('#importModal').onclick=e=>{if(e.target.id==='importModal')closeImport();};
 $('#importConfirm').onclick=confirmImport;
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();}});
+$('#actionCancel').onclick=closeAction;$('#actionModal').onclick=e=>{if(e.target.id==='actionModal')closeAction();};
+$('#actionConfirm').onclick=()=>{if(_actionConfirm){if(_actionConfirm()===false)return;}closeAction();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();closeAction();}});
 
 /* expose */
-window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;
 
 /* init */
 renderNav();go('dashboard');

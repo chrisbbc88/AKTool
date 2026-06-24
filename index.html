@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#F4F7FB; --surface:#FFFFFF; --surface-2:#FBFCFE;
@@ -249,6 +250,25 @@
   .map-line .arr{color:var(--ink-3)}
   .map-line .tgt{color:var(--primary-ink);font-weight:600}
   .map-line .miss{color:var(--ink-3)}
+  .imp-file{display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-bottom:14px}
+  .imp-file-name{font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .imp-file-name b{color:var(--ink)} .imp-file svg{width:17px;height:17px;color:var(--primary);flex:0 0 17px}
+  .imp-file button{margin-left:auto;flex:0 0 auto}
+  .imp-bar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+  .imp-ctrl{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .imp-ctrl select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);outline:none;font-weight:500}
+  .imp-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+  .imp-toggle input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+  .map-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px}
+  .map-row{display:flex;flex-direction:column;gap:5px}
+  .map-tgt{font-size:12px;font-weight:600;color:var(--ink-2)}
+  .map-sel{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);outline:none;width:100%;cursor:pointer}
+  .map-sel:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .prev-wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:160px}
+  .prev-tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+  .prev-tbl th{position:sticky;top:0;background:var(--surface-2);text-align:left;padding:7px 10px;font-weight:700;color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap}
+  .prev-tbl td{padding:6px 10px;border-bottom:1px solid var(--line-2);color:var(--ink-2);white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:560px){.map-grid{grid-template-columns:1fr}}
 
   .mobtab{display:none}
   @media(max-width:900px){
@@ -312,7 +332,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export
         </button>
         <button class="btn btn-primary" id="btnImport">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV importieren
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Importieren
         </button>
       </div>
     </header>
@@ -327,17 +347,9 @@
 <!-- Import modal -->
 <div class="modal-ov" id="importModal">
   <div class="modal">
-    <div class="modal-head"><h3>Kontakte importieren</h3><p>Lade eine CSV-Datei hoch. Spalten werden automatisch erkannt (Komma oder Semikolon).</p></div>
+    <div class="modal-head"><h3>Kontakte importieren</h3><p>CSV- oder Excel-Datei hochladen, danach die Spalten manuell zuordnen.</p></div>
     <div class="modal-body">
-      <div class="drop" id="drop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        <b>CSV-Datei hierher ziehen</b><span>oder klicken zum Auswählen</span>
-      </div>
-      <input type="file" id="fileInput" accept=".csv,text/csv" style="display:none">
-      <div id="mapPreview"></div>
-      <div style="margin-top:16px;font-size:12.5px;color:var(--ink-2)">
-        Keine Datei? <a href="#" id="sampleLink" style="font-weight:600">Beispiel-CSV herunterladen</a>
-      </div>
+      <div id="importStage"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" id="importCancel">Abbrechen</button>
@@ -469,7 +481,7 @@ function render(){const el=$('#content');
 
 function emptyState(){return `<div class="empty"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/></svg></div>
   <h3>Noch keine Kontakte</h3><p>Importiere deine Kontaktliste als CSV, um loszulegen. Du brauchst mindestens Vor- und Nachname – Branche und LinkedIn-Link machen den Workflow vollständig.</p>
-  <button class="btn btn-primary" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV importieren</button></div>`;}
+  <button class="btn btn-primary" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Importieren</button></div>`;}
 
 function kpiCard(ico,color,val,lbl,pct,pctColor){
   return `<div class="kpi"><div class="ico" style="background:${color}22;color:${color}">${ico}</div>
@@ -613,7 +625,7 @@ function viewEinstellungen(){
 
   <div class="card" style="max-width:680px;margin-top:18px"><div class="card-head"><h2>Daten</h2></div><div class="card-body">
     <div class="set-row"><div class="set-info"><b>Backup exportieren</b><p>Lade alle Kontakte inkl. Status & Verlauf als CSV herunter.</p></div><button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button></div>
-    <div class="set-row"><div class="set-info"><b>Kontakte importieren</b><p>CSV-Datei mit neuen Kontakten hochladen (Duplikate werden übersprungen).</p></div><button class="btn btn-ghost" onclick="openImport()">Import CSV</button></div>
+    <div class="set-row"><div class="set-info"><b>Kontakte importieren</b><p>CSV- oder Excel-Datei mit neuen Kontakten hochladen, Spalten manuell zuordnen (Duplikate werden übersprungen).</p></div><button class="btn btn-ghost" onclick="openImport()">Import</button></div>
     <div class="set-row"><div class="set-info"><b style="color:var(--red)">Alle Daten löschen</b><p>Entfernt sämtliche Kontakte und Vorlagen unwiderruflich aus diesem Browser.</p></div><button class="btn btn-ghost" style="color:var(--red);border-color:var(--red-soft)" onclick="wipe()">Zurücksetzen</button></div>
   </div></div>
   <div style="max-width:680px;margin-top:14px;font-size:12px;color:var(--ink-3);line-height:1.6">Hinweis: Alle Daten liegen ausschließlich lokal in deinem Browser (localStorage). Es findet keine Übertragung an Server statt – gut für die DSGVO, aber: Bei Browser-/Cache-Löschung sind die Daten weg. Exportiere daher regelmäßig.</div>`;
@@ -682,10 +694,10 @@ function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückg
 /* ============ Manual add ============ */
 function openManual(){const id=uid();state.contacts.push({id,vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
 
-/* ============ CSV ============ */
+/* ============ Import (CSV + Excel + manuelle Zuordnung) ============ */
 const FIELD_ALIASES={
-  vorname:['vorname','firstname','first','givenname','vname','firstnamename'],
-  nachname:['nachname','lastname','surname','last','familyname','nname','name'],
+  vorname:['vorname','firstname','first','givenname','vname','rufname'],
+  nachname:['nachname','lastname','surname','last','familyname','nname','name','fullname'],
   unternehmen:['unternehmen','firma','company','organisation','organization','account','companyname','firmenname','firmaname'],
   branche:['branche','industry','sector','industrie','segment'],
   email:['email','mail','emailadresse','emailaddress','mailadresse','epost'],
@@ -694,7 +706,8 @@ const FIELD_ALIASES={
   position:['position','title','jobtitle','rolle','funktion','job','titel'],
   notizen:['notizen','notes','notiz','anmerkung','bemerkung','comment','kommentar']
 };
-function normHead(h){return (h||'').toLowerCase().replace(/[\s._\-\/]/g,'').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');}
+const IMPORT_FIELDS=[['vorname','Vorname',1],['nachname','Nachname',1],['unternehmen','Unternehmen',0],['branche','Branche',0],['email','E-Mail',0],['linkedin','LinkedIn-URL',0],['telefon','Telefon',0],['position','Position',0],['notizen','Notizen',0]];
+function normHead(h){return (h||'').toString().toLowerCase().replace(/[\s._\-\/]/g,'').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');}
 function detectDelim(line){const c=(line.match(/,/g)||[]).length,s=(line.match(/;/g)||[]).length,t=(line.match(/\t/g)||[]).length;if(t>=c&&t>=s)return '\t';return s>c?';':',';}
 function parseCSV(text){
   text=text.replace(/^\uFEFF/,'');const delim=detectDelim(text.split(/\r?\n/)[0]||'');
@@ -705,34 +718,116 @@ function parseCSV(text){
       else if(ch==='\n'){row.push(field);rows.push(row);row=[];field='';}
       else if(ch==='\r'){}else field+=ch;}}
   if(field.length||row.length){row.push(field);rows.push(row);}
-  return rows.filter(r=>r.some(c=>c.trim()!==''));
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
 }
 let pendingImport=null;
-function handleFile(file){const reader=new FileReader();reader.onload=e=>{
-  const rows=parseCSV(e.target.result);
-  if(rows.length<2){toast('CSV scheint leer oder ungültig','warn');return;}
-  const headers=rows[0];const map={};
-  headers.forEach((h,i)=>{const n=normHead(h);for(const[field,al]of Object.entries(FIELD_ALIASES)){if(al.includes(n)&&map[field]==null){map[field]=i;break;}}});
-  pendingImport={rows,map,headers};
-  renderMapPreview(map,headers,rows.length-1);
-  $('#importConfirm').disabled=(map.vorname==null&&map.nachname==null);
-};reader.readAsText(file,'utf-8');}
-function renderMapPreview(map,headers,count){
-  const labels={vorname:'Vorname',nachname:'Nachname',unternehmen:'Unternehmen',branche:'Branche',email:'E-Mail',linkedin:'LinkedIn',telefon:'Telefon',position:'Position',notizen:'Notizen'};
-  const lines=Object.keys(labels).map(f=>{const i=map[f];return `<div class="map-line">${i!=null?`<span class="src">${esc(headers[i])}</span><span class="arr">→</span><span class="tgt">${labels[f]}</span>`:`<span class="miss">— nicht gefunden —</span><span class="arr">→</span><span class="tgt" style="color:var(--ink-3)">${labels[f]}</span>`}</div>`;}).join('');
-  const warn=(map.vorname==null&&map.nachname==null)?`<div style="margin-top:12px;padding:10px 12px;background:var(--red-soft);color:var(--red);border-radius:9px;font-size:12.5px;font-weight:600">Weder Vor- noch Nachname erkannt. Bitte Spaltennamen prüfen.</div>`:'';
-  $('#mapPreview').innerHTML=`<div class="map-preview"><div style="font-weight:700;margin-bottom:8px">${count} Zeilen erkannt – Spaltenzuordnung:</div>${lines}${warn}</div>`;
+function ensureXLSX(){return new Promise((res,rej)=>{let n=0;(function chk(){if(window.XLSX)return res();if(n++>50)return rej();setTimeout(chk,100);})();});}
+
+function handleFile(file){
+  const name=(file.name||'').toLowerCase();
+  if(/\.(xlsx|xlsm|xlsb|xls)$/.test(name)){
+    ensureXLSX().then(()=>{
+      const reader=new FileReader();
+      reader.onload=e=>{try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        if(!wb.SheetNames.length){toast('Keine Tabellenblätter gefunden','warn');return;}
+        pendingImport={type:'excel',fileName:file.name,workbook:wb,sheetNames:wb.SheetNames,hasHeader:true};
+        loadSheet(wb.SheetNames[0]);
+      }catch(err){toast('Excel-Datei konnte nicht gelesen werden','warn');}};
+      reader.readAsArrayBuffer(file);
+    }).catch(()=>toast('Excel-Modul nicht geladen – bitte als CSV speichern','warn'));
+  } else {
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const rows=parseCSV(e.target.result);
+      if(!rows.length){toast('Datei scheint leer','warn');return;}
+      pendingImport={type:'csv',fileName:file.name,rows,hasHeader:true};
+      pendingImport.map=autoMap(importView().headers);
+      renderImportMapping();
+    };
+    reader.readAsText(file,'utf-8');
+  }
 }
-function confirmImport(){if(!pendingImport)return;const{rows,map}=pendingImport;let added=0,dups=0;
+function loadSheet(sheetName){
+  const ws=pendingImport.workbook.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}).filter(r=>r.some(c=>String(c).trim()!==''));
+  pendingImport.sheet=sheetName;pendingImport.rows=rows;
+  if(!rows.length){toast('Tabellenblatt ist leer','warn');}
+  pendingImport.map=autoMap(importView().headers);
+  renderImportMapping();
+}
+function importView(){
+  const rows=pendingImport.rows||[];
+  const colCount=rows.reduce((m,r)=>Math.max(m,r.length),0);
+  const headers=[];
+  for(let i=0;i<colCount;i++){
+    if(pendingImport.hasHeader&&rows[0]&&String(rows[0][i]||'').trim()!=='')headers.push(String(rows[0][i]));
+    else headers.push('Spalte '+(i+1));
+  }
+  const dataRows=pendingImport.hasHeader?rows.slice(1):rows.slice(0);
+  return {headers,dataRows,colCount};
+}
+function autoMap(headers){const map={};if(!pendingImport.hasHeader)return map;
+  headers.forEach((h,i)=>{const n=normHead(h);for(const[f,al]of Object.entries(FIELD_ALIASES)){if(al.includes(n)&&map[f]==null){map[f]=i;break;}}});return map;}
+
+function renderImportStart(){
+  $('#importStage').innerHTML=`
+    <div class="drop" id="drop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <b>CSV- oder Excel-Datei hierher ziehen</b><span>oder klicken zum Auswählen · .csv, .xlsx, .xls</span>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xlsm,.xlsb,.xls,text/csv" style="display:none">
+    <div style="margin-top:16px;font-size:12.5px;color:var(--ink-2)">Keine Datei? <a href="#" id="sampleLink" style="font-weight:600">Beispiel-CSV herunterladen</a></div>`;
+  const drop=$('#drop'),fi=$('#fileInput');
+  drop.onclick=()=>fi.click();
+  fi.onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+  drop.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+  $('#sampleLink').onclick=e=>{e.preventDefault();sampleCSV();};
+  $('#importConfirm').disabled=true;
+}
+function renderImportMapping(){
+  const{headers,dataRows}=importView();const map=pendingImport.map||{};
+  const optsFor=cur=>['<option value="">— nicht zuordnen —</option>'].concat(headers.map((h,i)=>{
+    const sv=dataRows[0]&&dataRows[0][i]!=null?String(dataRows[0][i]).trim():'';
+    const hint=sv?` · z. B. "${esc(sv.slice(0,26))}"`:'';
+    return `<option value="${i}" ${cur===i?'selected':''}>${esc(h)}${hint}</option>`;
+  })).join('');
+  const mapRows=IMPORT_FIELDS.map(([f,lbl,req])=>`<div class="map-row">
+    <label class="map-tgt">${lbl}${req?' <span style="color:var(--primary-ink)" title="empfohlen">•</span>':''}</label>
+    <select class="map-sel" data-field="${f}" onchange="onMapChange(this)">${optsFor(map[f]!=null?map[f]:'')}</select></div>`).join('');
+  const prevRows=dataRows.slice(0,3);
+  const prev=`<div class="prev-wrap"><table class="prev-tbl"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${prevRows.map(r=>`<tr>${headers.map((h,i)=>`<td title="${esc(r[i]!=null?String(r[i]):'')}">${esc(r[i]!=null?String(r[i]).slice(0,40):'')}</td>`).join('')}</tr>`).join('')||`<tr><td>Keine Datenzeilen</td></tr>`}</tbody></table></div>`;
+  const sheetSel=(pendingImport.type==='excel'&&pendingImport.sheetNames.length>1)?`<div class="imp-ctrl"><label>Tabellenblatt</label><select onchange="switchSheet(this.value)">${pendingImport.sheetNames.map(s=>`<option ${s===pendingImport.sheet?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`:'';
+  $('#importStage').innerHTML=`
+    <div class="imp-file"><div class="imp-file-name"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>${esc(pendingImport.fileName)}</span> · <b>${dataRows.length}</b> Zeilen</div><button class="btn btn-sm btn-ghost" onclick="renderImportStart()">Andere Datei</button></div>
+    <div class="imp-bar">${sheetSel}<label class="imp-toggle"><input type="checkbox" ${pendingImport.hasHeader?'checked':''} onchange="toggleHeader(this.checked)"> Erste Zeile enthält Überschriften</label></div>
+    <div class="psec-title" style="margin:6px 0 10px">Spalten zuordnen <span style="text-transform:none;letter-spacing:0;color:var(--ink-3);font-weight:500">(• = empfohlen)</span></div>
+    <div class="map-grid">${mapRows}</div>
+    <div class="psec-title" style="margin:18px 0 8px">Vorschau</div>${prev}
+    <div id="impWarn"></div>`;
+  updateImportValidity();
+}
+function onMapChange(sel){pendingImport.map[sel.dataset.field]=sel.value===''?null:+sel.value;updateImportValidity();}
+function toggleHeader(on){pendingImport.hasHeader=on;pendingImport.map=on?autoMap(importView().headers):{};renderImportMapping();}
+function switchSheet(name){loadSheet(name);}
+function updateImportValidity(){const m=pendingImport.map||{};const ok=(m.vorname!=null||m.nachname!=null);
+  const btn=$('#importConfirm');if(btn)btn.disabled=!ok;
+  const w=$('#impWarn');if(w)w.innerHTML=ok?'':`<div style="margin-top:12px;padding:10px 12px;background:var(--red-soft);color:var(--red);border-radius:9px;font-size:12.5px;font-weight:600">Bitte mindestens Vorname oder Nachname zuordnen.</div>`;}
+
+function confirmImport(){if(!pendingImport)return;const{dataRows}=importView();const map=pendingImport.map||{};
+  if(map.vorname==null&&map.nachname==null){toast('Bitte Vorname oder Nachname zuordnen','warn');return;}
+  let added=0,dups=0;
   const existing=new Set(state.contacts.map(c=>(c.email||'').toLowerCase()).filter(Boolean));
   const existingLi=new Set(state.contacts.map(c=>(c.linkedin||'').toLowerCase()).filter(Boolean));
-  for(let r=1;r<rows.length;r++){const row=rows[r];const g=f=>map[f]!=null?(row[map[f]]||'').trim():'';
+  dataRows.forEach(row=>{const g=f=>map[f]!=null?String(row[map[f]]==null?'':row[map[f]]).trim():'';
+    const vor=g('vorname'),nach=g('nachname');if(!vor&&!nach)return;
     const email=g('email').toLowerCase(),li=g('linkedin').toLowerCase();
-    if(email&&existing.has(email)){dups++;continue;}
-    if(!email&&li&&existingLi.has(li)){dups++;continue;}
-    const vor=g('vorname'),nach=g('nachname');if(!vor&&!nach)continue;
+    if(email&&existing.has(email)){dups++;return;}
+    if(!email&&li&&existingLi.has(li)){dups++;return;}
     state.contacts.push({id:uid(),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
-    if(email)existing.add(email);if(li)existingLi.add(li);added++;}
+    if(email)existing.add(email);if(li)existingLi.add(li);added++;});
   save();closeImport();go('kontakte');toast(`${added} Kontakte importiert${dups?` · ${dups} Duplikate übersprungen`:''}`,'ok');
 }
 function exportCSV(){
@@ -747,8 +842,8 @@ function sampleCSV(){const s='Vorname;Nachname;Unternehmen;Branche;Position;Emai
 function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
 /* ============ Import modal ============ */
-function openImport(){pendingImport=null;$('#mapPreview').innerHTML='';$('#importConfirm').disabled=true;$('#importModal').classList.add('open');}
-function closeImport(){$('#importModal').classList.remove('open');$('#fileInput').value='';}
+function openImport(){pendingImport=null;renderImportStart();$('#importModal').classList.add('open');}
+function closeImport(){$('#importModal').classList.remove('open');pendingImport=null;}
 
 /* ============ Clipboard / toast ============ */
 function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));}else fallbackCopy(text);}
@@ -767,17 +862,10 @@ $('#btnImport').onclick=openImport;$('#btnExport').onclick=exportCSV;
 $('#overlay').onclick=closePanel;
 $('#importCancel').onclick=closeImport;$('#importModal').onclick=e=>{if(e.target.id==='importModal')closeImport();};
 $('#importConfirm').onclick=confirmImport;
-$('#drop').onclick=()=>$('#fileInput').click();
-$('#fileInput').onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
-const drop=$('#drop');
-['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
-['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
-drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
-$('#sampleLink').onclick=e=>{e.preventDefault();sampleCSV();};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();}});
 
 /* expose */
-window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;
 
 /* init */
 renderNav();go('dashboard');

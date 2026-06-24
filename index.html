@@ -434,11 +434,11 @@ const DEFAULT_TEMPLATES=[
   {id:'li1',channel:'linkedin',name:'LinkedIn Vernetzung',subject:'',
    body:'Hallo {vorname}, ich unterstütze Unternehmen aus der {branche}-Branche dabei, ihren Vertrieb planbar und strukturiert aufzustellen. Ein kurzer Austausch mit Ihnen würde mich freuen – beste Grüße, Christian'},
   {id:'m1',channel:'email',name:'E-Mail 1 – Erstkontakt',subject:'Kurze Frage zum Vertrieb bei {unternehmen}',
-   body:'Hallo {vorname},\n\nich habe versucht, Sie über LinkedIn zu erreichen, und melde mich daher kurz direkt.\n\nViele Unternehmen aus der {branche}-Branche kennen das Problem: gute Leistung, aber der Vertrieb läuft eher zufällig als planbar. Genau hier setze ich an – mit strukturierten Vertriebsprozessen und einer klaren Akquise.\n\nHätten Sie kommende Woche 15 Minuten für einen kurzen Austausch?\n\nBeste Grüße\nChristian'},
+   body:'{briefanrede},\n\nich habe versucht, Sie über LinkedIn zu erreichen, und melde mich daher kurz direkt.\n\nViele Unternehmen aus der {branche}-Branche kennen das Problem: gute Leistung, aber der Vertrieb läuft eher zufällig als planbar. Genau hier setze ich an – mit strukturierten Vertriebsprozessen und einer klaren Akquise.\n\nHätten Sie kommende Woche 15 Minuten für einen kurzen Austausch?\n\nBeste Grüße\nChristian'},
   {id:'m2',channel:'email',name:'E-Mail 2 – Follow-up',subject:'Nachfrage: Vertrieb bei {unternehmen}',
-   body:'Hallo {vorname},\n\nich wollte kurz nachhaken – meine letzte Nachricht ist vielleicht untergegangen.\n\nFalls das Thema planbarer Vertrieb bei {unternehmen} gerade relevant ist, würde ich mich über eine kurze Rückmeldung freuen. Ein unverbindliches Gespräch lohnt sich erfahrungsgemäß.\n\nBeste Grüße\nChristian'},
-  {id:'m3',channel:'email',name:'E-Mail 3 – Letzter Impuls',subject:'Letzte Nachricht von mir, {vorname}',
-   body:'Hallo {vorname},\n\nich möchte nicht aufdringlich sein – das ist meine letzte Nachricht zum Thema.\n\nSollten Sie zu einem späteren Zeitpunkt Interesse an einem strukturierten Vertriebsaufbau haben, melden Sie sich gerne jederzeit.\n\nBeste Grüße\nChristian'}
+   body:'{briefanrede},\n\nich wollte kurz nachhaken – meine letzte Nachricht ist vielleicht untergegangen.\n\nFalls das Thema planbarer Vertrieb bei {unternehmen} gerade relevant ist, würde ich mich über eine kurze Rückmeldung freuen. Ein unverbindliches Gespräch lohnt sich erfahrungsgemäß.\n\nBeste Grüße\nChristian'},
+  {id:'m3',channel:'email',name:'E-Mail 3 – Letzter Impuls',subject:'Letzte Nachricht von mir',
+   body:'{briefanrede},\n\nich möchte nicht aufdringlich sein – das ist meine letzte Nachricht zum Thema.\n\nSollten Sie zu einem späteren Zeitpunkt Interesse an einem strukturierten Vertriebsaufbau haben, melden Sie sich gerne jederzeit.\n\nBeste Grüße\nChristian'}
 ];
 
 let state=load();
@@ -459,7 +459,19 @@ function initials(c){return ((c.vorname||' ')[0]+(c.nachname||' ')[0]).toUpperCa
 function fullName(c){return [c.vorname,c.nachname].filter(Boolean).join(' ')||'(ohne Namen)';}
 function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function dueState(iso){if(!iso)return 'none';const t=todayISO();if(iso<t)return 'over';if(iso===t)return 'today';return 'future';}
-function fillTpl(tpl,c){return (tpl||'').replace(/\{(\w+)\}/g,(m,k)=>c[k]!=null&&c[k]!==''?c[k]:m);}
+function anredeName(c){const a=c.anrede||'';if(a==='Herr')return ('Herr '+(c.nachname||'')).trim();if(a==='Frau')return ('Frau '+(c.nachname||'')).trim();return '';}
+function briefanrede(c){const a=c.anrede||'';if(a==='Herr')return ('Sehr geehrter Herr '+(c.nachname||'')).trim();if(a==='Frau')return ('Sehr geehrte Frau '+(c.nachname||'')).trim();return 'Sehr geehrte Damen und Herren';}
+function fillTpl(tpl,c){const brief=briefanrede(c),an=c.anrede||'',ann=anredeName(c);
+  return (tpl||'').replace(/\{(\w+)\}/g,(m,k)=>{
+    if(k==='briefanrede')return brief;
+    if(k==='anrede')return an;
+    if(k==='anrede_name')return ann;
+    return c[k]!=null&&c[k]!==''?c[k]:m;
+  });}
+function normAnrede(v){v=(v||'').toString().trim().toLowerCase();
+  if(['herr','herrn','mr','mr.','m','männlich','maennlich','male','mann'].includes(v))return 'Herr';
+  if(['frau','mrs','mrs.','ms','ms.','w','f','weiblich','female','dame'].includes(v))return 'Frau';
+  return '';}
 function normUrl(u){if(!u)return '';return /^https?:\/\//i.test(u)?u:'https://'+u.replace(/^\/+/,'');}
 
 /* ============ Cadence ============ */
@@ -691,7 +703,7 @@ function viewVorlagen(){
   const cards=state.templates.map(t=>`<div class="tpl-card" data-tid="${t.id}">
     <div class="tpl-head"><span class="chan ${t.channel==='linkedin'?'chan-li':'chan-mail'}">${t.channel==='linkedin'?'LinkedIn':'E-Mail'}</span><span class="tpl-name">${esc(t.name)}</span>
       <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="delTemplate('${t.id}')">Löschen</button></div>
-    <div class="vars">Variablen: ${['vorname','nachname','unternehmen','branche','position'].map(v=>`<span class="var-chip" onclick="insVar('${t.id}','${v}')">{${v}}</span>`).join('')}</div>
+    <div class="vars">Variablen: ${['briefanrede','anrede','vorname','nachname','unternehmen','branche','position'].map(v=>`<span class="var-chip" onclick="insVar('${t.id}','${v}')">{${v}}</span>`).join('')}</div>
     <div class="field"><label>Name der Vorlage</label><input data-f="name" value="${esc(t.name)}"></div>
     ${t.channel==='email'?`<div class="field"><label>Betreff</label><input data-f="subject" value="${esc(t.subject)}"></div>`:''}
     <div class="field"><label>Nachricht</label><textarea data-f="body" style="min-height:${t.channel==='email'?'150px':'90px'}">${esc(t.body)}</textarea></div>
@@ -701,7 +713,7 @@ function viewVorlagen(){
     <button class="btn btn-ghost" onclick="addTemplate('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>E-Mail-Vorlage</button>
     <button class="btn btn-primary" style="margin-left:auto" onclick="saveTemplates()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Vorlagen speichern</button>
   </div>${cards}
-  <div style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Die Reihenfolge der E-Mail-Vorlagen bestimmt die Sequenz: die erste E-Mail-Vorlage ist „E-Mail 1", die zweite „E-Mail 2" usw. Variablen wie {vorname} werden beim Anschreiben automatisch durch die Kontaktdaten ersetzt. Im E-Mail-Fenster kannst du Empfänger, Betreff und Nachricht einzeln kopieren und den Schritt abhaken.</div>`;
+  <div style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Die Reihenfolge der E-Mail-Vorlagen bestimmt die Sequenz: die erste E-Mail-Vorlage ist „E-Mail 1", die zweite „E-Mail 2" usw. Variablen wie {vorname} werden beim Anschreiben automatisch ersetzt. <b style="color:var(--ink-2)">{briefanrede}</b> wird je nach Anrede des Kontakts zu „Sehr geehrter Herr Mustermann", „Sehr geehrte Frau Schmidt" oder – falls keine Anrede gesetzt ist – „Sehr geehrte Damen und Herren". <b style="color:var(--ink-2)">{anrede}</b> ergibt nur „Herr" bzw. „Frau". Im E-Mail-Fenster kannst du Empfänger, Betreff und Nachricht einzeln kopieren und den Schritt abhaken.</div>`;
 }
 
 function viewEinstellungen(){
@@ -764,6 +776,7 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
       <div><div class="psec-title">Status setzen</div><div class="stage-pick">${stageOpts}</div></div>
 
       <div><div class="psec-title">Kontaktdaten</div>
+        <div class="field"><label>Anrede</label><select data-c="anrede"><option value="" ${!c.anrede?'selected':''}>— keine —</option><option ${c.anrede==='Herr'?'selected':''}>Herr</option><option ${c.anrede==='Frau'?'selected':''}>Frau</option></select></div>
         <div class="grid-fld"><div class="field"><label>Vorname</label><input data-c="vorname" value="${esc(c.vorname)}"></div><div class="field"><label>Nachname</label><input data-c="nachname" value="${esc(c.nachname)}"></div></div>
         <div class="field"><label>Unternehmen</label><input data-c="unternehmen" value="${esc(c.unternehmen)}"></div>
         <div class="grid-fld"><div class="field"><label>Branche</label><input data-c="branche" value="${esc(c.branche)}"></div><div class="field"><label>Position</label><input data-c="position" value="${esc(c.position)}"></div></div>
@@ -786,20 +799,22 @@ function sendEmailFromPanel(id){const sel=$('#panelTpl');doEmail(id,sel?sel.valu
 function delContact(id){if(!confirm('Diesen Kontakt wirklich löschen?'))return;state.contacts=state.contacts.filter(c=>c.id!==id);closePanel();save();toast('Kontakt gelöscht','ok');rerender();}
 
 /* ============ Templates ops ============ */
-function saveTemplates(){document.querySelectorAll('.tpl-card').forEach(card=>{const t=state.templates.find(x=>x.id===card.dataset.tid);if(!t)return;card.querySelectorAll('[data-f]').forEach(el=>{t[el.dataset.f]=el.value;});});save();toast('Vorlagen gespeichert','ok');}
-function addTemplate(ch){state.templates.push({id:uid(),channel:ch,name:ch==='linkedin'?'Neue LinkedIn-Vorlage':'Neue E-Mail-Vorlage',subject:ch==='email'?'Betreff …':'',body:'Hallo {vorname}, …'});save();render();}
-function delTemplate(id){if(!confirm('Vorlage löschen?'))return;state.templates=state.templates.filter(t=>t.id!==id);save();render();}
-function insVar(tid,v){const card=document.querySelector(`.tpl-card[data-tid="${tid}"]`);if(!card)return;const ta=card.querySelector('textarea[data-f="body"]');if(!ta)return;const s=ta.selectionStart||ta.value.length;ta.value=ta.value.slice(0,s)+'{'+v+'}'+ta.value.slice(ta.selectionEnd||s);ta.focus();}
+function captureTemplates(){document.querySelectorAll('.tpl-card').forEach(card=>{const t=state.templates.find(x=>x.id===card.dataset.tid);if(!t)return;card.querySelectorAll('[data-f]').forEach(el=>{t[el.dataset.f]=el.value;});});}
+function saveTemplates(){captureTemplates();save();toast('Vorlagen gespeichert','ok');}
+function addTemplate(ch){captureTemplates();state.templates.push({id:uid(),channel:ch,name:ch==='linkedin'?'Neue LinkedIn-Vorlage':'Neue E-Mail-Vorlage',subject:ch==='email'?'Betreff …':'',body:ch==='linkedin'?'Hallo {vorname}, …':'{briefanrede},\n\n…\n\nBeste Grüße\nChristian'});save();render();toast('Vorlage hinzugefügt','ok');}
+function delTemplate(id){if(!confirm('Diese Vorlage wirklich löschen?'))return;captureTemplates();state.templates=state.templates.filter(t=>t.id!==id);save();render();toast('Vorlage gelöscht','ok');}
+function insVar(tid,v){const card=document.querySelector(`.tpl-card[data-tid="${tid}"]`);if(!card)return;const ta=card.querySelector('textarea[data-f="body"]');if(!ta)return;const s=ta.selectionStart||ta.value.length;ta.value=ta.value.slice(0,s)+'{'+v+'}'+ta.value.slice(ta.selectionEnd||s);const t=state.templates.find(x=>x.id===tid);if(t){t.body=ta.value;save();}ta.focus();}
 
 /* ============ Settings ops ============ */
 function saveSettings(){state.settings.linkedinToEmailDays=Math.max(0,+$('#setLi').value||3);state.settings.emailFollowupDays=Math.max(1,+$('#setEm').value||5);state.settings.maxEmails=Math.max(1,+$('#setMax').value||4);save();toast('Kadenz gespeichert','ok');}
 function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden.'))return;state={contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4}};save();closePanel();go('dashboard');toast('Alle Daten gelöscht','ok');}
 
 /* ============ Manual add ============ */
-function openManual(){const id=uid();state.contacts.push({id,vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
+function openManual(){const id=uid();state.contacts.push({id,anrede:'',vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
 
 /* ============ Import (CSV + Excel + manuelle Zuordnung) ============ */
 const FIELD_ALIASES={
+  anrede:['anrede','geschlecht','gender','salutation','sex','titel'],
   vorname:['vorname','firstname','first','givenname','vname','rufname'],
   nachname:['nachname','lastname','surname','last','familyname','nname','name','fullname'],
   unternehmen:['unternehmen','firma','company','organisation','organization','account','companyname','firmenname','firmaname'],
@@ -810,7 +825,7 @@ const FIELD_ALIASES={
   position:['position','title','jobtitle','rolle','funktion','job','titel'],
   notizen:['notizen','notes','notiz','anmerkung','bemerkung','comment','kommentar']
 };
-const IMPORT_FIELDS=[['vorname','Vorname',1],['nachname','Nachname',1],['unternehmen','Unternehmen',0],['branche','Branche',0],['email','E-Mail',0],['linkedin','LinkedIn-URL',0],['telefon','Telefon',0],['position','Position',0],['notizen','Notizen',0]];
+const IMPORT_FIELDS=[['anrede','Anrede (Herr/Frau)',0],['vorname','Vorname',1],['nachname','Nachname',1],['unternehmen','Unternehmen',0],['branche','Branche',0],['email','E-Mail',0],['linkedin','LinkedIn-URL',0],['telefon','Telefon',0],['position','Position',0],['notizen','Notizen',0]];
 function normHead(h){return (h||'').toString().toLowerCase().replace(/[\s._\-\/]/g,'').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');}
 function detectDelim(line){const c=(line.match(/,/g)||[]).length,s=(line.match(/;/g)||[]).length,t=(line.match(/\t/g)||[]).length;if(t>=c&&t>=s)return '\t';return s>c?';':',';}
 function parseCSV(text){
@@ -930,19 +945,19 @@ function confirmImport(){if(!pendingImport)return;const{dataRows}=importView();c
     const email=g('email').toLowerCase(),li=g('linkedin').toLowerCase();
     if(email&&existing.has(email)){dups++;return;}
     if(!email&&li&&existingLi.has(li)){dups++;return;}
-    state.contacts.push({id:uid(),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
+    state.contacts.push({id:uid(),anrede:normAnrede(g('anrede')),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
     if(email)existing.add(email);if(li)existingLi.add(li);added++;});
   save();closeImport();go('kontakte');toast(`${added} Kontakte importiert${dups?` · ${dups} Duplikate übersprungen`:''}`,'ok');
 }
 function exportCSV(){
-  const cols=['vorname','nachname','unternehmen','branche','position','email','linkedin','telefon','stage','linkedinAt','vernetztAt','emailCount','lastEmailAt','repliedAt','nextAction','nextActionType','notizen'];
+  const cols=['anrede','vorname','nachname','unternehmen','branche','position','email','linkedin','telefon','stage','linkedinAt','vernetztAt','emailCount','lastEmailAt','repliedAt','nextAction','nextActionType','notizen'];
   const head=cols.join(';');
   const esc2=v=>{v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const lines=state.contacts.map(c=>cols.map(k=>{let v=c[k];if(['linkedinAt','vernetztAt','lastEmailAt','repliedAt'].includes(k)&&v)v=new Date(v).toISOString();if(k==='stage'&&v)v=STAGES[v]?STAGES[v].label:v;return esc2(v);}).join(';'));
   download('akquise-export-'+todayISO()+'.csv','\uFEFF'+head+'\n'+lines.join('\n'));
   toast('Export erstellt','ok');
 }
-function sampleCSV(){const s='Vorname;Nachname;Unternehmen;Branche;Position;Email;LinkedIn;Telefon\nMax;Mustermann;Bau Müller GmbH;Bauunternehmen;Geschäftsführer;m.mustermann@beispiel.de;https://www.linkedin.com/in/maxmustermann;+49 170 1234567\nSandra;Schmidt;Immo Nord AG;Immobilien;Vertriebsleiterin;s.schmidt@beispiel.de;https://www.linkedin.com/in/sandraschmidt;';download('beispiel-kontakte.csv','\uFEFF'+s);}
+function sampleCSV(){const s='Anrede;Vorname;Nachname;Unternehmen;Branche;Position;Email;LinkedIn;Telefon\nHerr;Max;Mustermann;Bau Müller GmbH;Bauunternehmen;Geschäftsführer;m.mustermann@beispiel.de;https://www.linkedin.com/in/maxmustermann;+49 170 1234567\nFrau;Sandra;Schmidt;Immo Nord AG;Immobilien;Vertriebsleiterin;s.schmidt@beispiel.de;https://www.linkedin.com/in/sandraschmidt;';download('beispiel-kontakte.csv','\uFEFF'+s);}
 function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function backupJSON(){
   const data={app:'akquise-cockpit',version:1,exportedAt:new Date().toISOString(),contacts:state.contacts,templates:state.templates,settings:state.settings};
@@ -1077,6 +1092,8 @@ function bindContent(){
   const bx=$('#bulkNext');if(bx)bx.onclick=bulkNext;
   const bd=$('#bulkDelete');if(bd)bd.onclick=bulkDelete;
   const bc=$('#bulkClear');if(bc)bc.onclick=()=>{selected.clear();render();};
+  // templates: save edits live so nothing is lost on add/delete/navigation
+  document.querySelectorAll('.tpl-card').forEach(card=>{const t=state.templates.find(x=>x.id===card.dataset.tid);if(!t)return;card.querySelectorAll('[data-f]').forEach(el=>{el.oninput=()=>{t[el.dataset.f]=el.value;save();};});});
   updateBulkUI();
 }
 document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>go(b.dataset.view));

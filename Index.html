@@ -163,6 +163,26 @@
   .bulk-btn.danger:hover{background:var(--red)}
   .bulk-btn.ghost{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.28)}
   .bulk-btn.ghost:hover{background:rgba(255,255,255,.12)}
+  .ostep{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--surface);transition:.13s}
+  .ostep:last-child{margin-bottom:0}
+  .ostep.done{background:var(--surface-2)}
+  .ostep.next{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .ostep-head{display:flex;align-items:center;gap:12px;padding:13px 15px;cursor:pointer}
+  .ostep-badge{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:13px;flex:0 0 28px;background:var(--slate-soft);color:var(--ink-3)}
+  .ostep.done .ostep-badge{background:var(--green-soft);color:var(--green)}
+  .ostep.next .ostep-badge{background:var(--primary-soft);color:var(--primary-ink)}
+  .ostep-title{font-weight:600;font-size:14px}
+  .ostep-sub{font-size:11.5px;color:var(--ink-3)}
+  .ostep-status{margin-left:auto;font-size:12px;font-weight:600;white-space:nowrap}
+  .ostep-body{padding:2px 15px 15px;border-top:1px solid var(--line-2)}
+  .ofield{margin-top:12px}
+  .ofield-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:5px;display:flex;align-items:center;gap:8px}
+  .ofield-val{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:13px;white-space:pre-wrap;word-break:break-word;line-height:1.55;max-height:220px;overflow:auto}
+  .copy-btn{margin-left:auto;font-size:11px;font-weight:700;color:var(--primary-ink);background:var(--primary-soft);padding:4px 10px;border-radius:6px;transition:.13s}
+  .copy-btn:hover{background:#d2efe5}
+  .ostep-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .ocheck{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;cursor:pointer;margin-left:auto;background:var(--green-soft);color:var(--green);padding:7px 12px;border-radius:9px}
+  .ocheck input{width:17px;height:17px;accent-color:var(--green);cursor:pointer}
 
   /* Action cards (Heute) */
   .queue{display:flex;flex-direction:column;gap:12px}
@@ -380,6 +400,17 @@
   </div>
 </div>
 
+<div class="modal-ov" id="outreachModal">
+  <div class="modal" style="width:620px">
+    <div class="modal-head" style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1;min-width:0"><h3 id="outreachTitle"></h3><p id="outreachSub"></p></div>
+      <button class="panel-close" onclick="closeOutreach()" style="flex:0 0 34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body" id="outreachBody"></div>
+    <div class="modal-foot"><span style="font-size:12px;color:var(--ink-3);margin-right:auto">Schritt abhaken, sobald gesendet – die nächste Aufgabe wird automatisch gesetzt.</span><button class="btn btn-ghost" onclick="closeOutreach()">Schließen</button></div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -589,7 +620,7 @@ function qcard(c){
     </div>
     <div class="qactions">
       ${c.linkedin?`<button class="btn btn-sm btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:''}
-      <button class="btn btn-sm btn-icon act-mail" title="E-Mail schreiben + markieren" onclick="doEmail('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+      <button class="btn btn-sm btn-icon act-mail" title="E-Mail-Sequenz öffnen" onclick="openOutreach('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
       ${c.linkedinAt&&!c.vernetztAt?`<button class="btn btn-sm btn-ghost" title="Vernetzung angenommen" onclick="doAccepted('${c.id}')">Vernetzt ✓</button>`:''}
       <button class="btn btn-sm btn-ghost" title="+5 Tage verschieben" onclick="snooze('${c.id}',5)">+5T</button>
       <button class="btn btn-sm btn-ghost" onclick="openPanel('${c.id}')">Details</button>
@@ -618,7 +649,7 @@ function viewKontakte(){
       <td>${c.nextAction?`<span class="due-pill ${ds==='over'?'due-over':ds==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><div class="cell-sub">${esc(c.nextActionType||'')}</div>`:'<span class="due-future">–</span>'}</td>
       <td><div class="row-actions">
         ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
-        <button class="btn-icon act-mail" title="E-Mail schreiben + markieren" onclick="doEmail('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+        <button class="btn-icon act-mail" title="E-Mail-Sequenz öffnen" onclick="openOutreach('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
         <button class="btn-icon" title="Details" onclick="openPanel('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/></svg></button>
       </div></td>
     </tr>`;}).join('');
@@ -670,7 +701,7 @@ function viewVorlagen(){
     <button class="btn btn-ghost" onclick="addTemplate('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>E-Mail-Vorlage</button>
     <button class="btn btn-primary" style="margin-left:auto" onclick="saveTemplates()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Vorlagen speichern</button>
   </div>${cards}
-  <div style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Beim Anschreiben werden die Variablen automatisch durch die Kontaktdaten ersetzt. LinkedIn-Nachrichten werden in die Zwischenablage kopiert (LinkedIn erlaubt kein Vorbefüllen), E-Mails öffnen direkt deinen Mail-Client.</div>`;
+  <div style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Die Reihenfolge der E-Mail-Vorlagen bestimmt die Sequenz: die erste E-Mail-Vorlage ist „E-Mail 1", die zweite „E-Mail 2" usw. Variablen wie {vorname} werden beim Anschreiben automatisch durch die Kontaktdaten ersetzt. Im E-Mail-Fenster kannst du Empfänger, Betreff und Nachricht einzeln kopieren und den Schritt abhaken.</div>`;
 }
 
 function viewEinstellungen(){
@@ -682,8 +713,13 @@ function viewEinstellungen(){
     <div style="margin-top:16px"><button class="btn btn-primary" onclick="saveSettings()">Kadenz speichern</button></div>
   </div></div>
 
+  <div class="card" style="max-width:680px;margin-top:18px"><div class="card-head"><h2>Sicherung &amp; Wiederherstellung</h2></div><div class="card-body">
+    <div class="set-row"><div class="set-info"><b>Komplett-Backup (JSON)</b><p>Sichert <b>alles</b> – Kontakte, Status, Verlauf, Vorlagen und Einstellungen – in einer Datei zum Wiederherstellen.</p></div><button class="btn btn-primary" onclick="backupJSON()">Backup speichern</button></div>
+    <div class="set-row"><div class="set-info"><b>Backup wiederherstellen</b><p>JSON-Backup hochladen. <b style="color:var(--ink)">Ersetzt alle aktuellen Daten</b> – am besten vorher ein aktuelles Backup ziehen.</p></div><button class="btn btn-ghost" onclick="restoreJSON()">Datei wählen</button></div>
+  </div></div>
+
   <div class="card" style="max-width:680px;margin-top:18px"><div class="card-head"><h2>Daten</h2></div><div class="card-body">
-    <div class="set-row"><div class="set-info"><b>Backup exportieren</b><p>Lade alle Kontakte inkl. Status & Verlauf als CSV herunter.</p></div><button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button></div>
+    <div class="set-row"><div class="set-info"><b>Kontakte als CSV exportieren</b><p>Nur die Kontakte inkl. Status für Excel/Tabellen – nicht zum vollständigen Wiederherstellen geeignet.</p></div><button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button></div>
     <div class="set-row"><div class="set-info"><b>Kontakte importieren</b><p>CSV- oder Excel-Datei mit neuen Kontakten hochladen, Spalten manuell zuordnen (Duplikate werden übersprungen).</p></div><button class="btn btn-ghost" onclick="openImport()">Import</button></div>
     <div class="set-row"><div class="set-info"><b style="color:var(--red)">Alle Daten löschen</b><p>Entfernt sämtliche Kontakte und Vorlagen unwiderruflich aus diesem Browser.</p></div><button class="btn btn-ghost" style="color:var(--red);border-color:var(--red-soft)" onclick="wipe()">Zurücksetzen</button></div>
   </div></div>
@@ -708,11 +744,10 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
         <div class="psec-title">Schnellaktionen</div>
         <div class="quick-actions">
           <button class="btn ${c.linkedin?'btn-ghost act-li':'btn-ghost'}" ${c.linkedin?'':'disabled style=opacity:.4'} onclick="doLinkedIn('${id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg>LinkedIn anfragen</button>
-          <button class="btn btn-ghost act-mail" onclick="sendEmailFromPanel('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>E-Mail senden</button>
+          <button class="btn btn-ghost act-mail" onclick="openOutreach('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>E-Mail-Sequenz</button>
           <button class="btn btn-ghost" onclick="doAccepted('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>Vernetzt</button>
           <button class="btn btn-ghost" onclick="doReplied('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.5 8.5 0 0 1-12.5 7.5L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z"/></svg>Hat geantwortet</button>
         </div>
-        ${emailTpls.length>1?`<div class="field" style="margin-top:10px"><label>E-Mail-Vorlage</label><select id="panelTpl">${emailTpls.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>`:''}
       </div>
 
       <div><div class="psec-title">Nächste Aktion</div>
@@ -909,6 +944,32 @@ function exportCSV(){
 }
 function sampleCSV(){const s='Vorname;Nachname;Unternehmen;Branche;Position;Email;LinkedIn;Telefon\nMax;Mustermann;Bau Müller GmbH;Bauunternehmen;Geschäftsführer;m.mustermann@beispiel.de;https://www.linkedin.com/in/maxmustermann;+49 170 1234567\nSandra;Schmidt;Immo Nord AG;Immobilien;Vertriebsleiterin;s.schmidt@beispiel.de;https://www.linkedin.com/in/sandraschmidt;';download('beispiel-kontakte.csv','\uFEFF'+s);}
 function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function backupJSON(){
+  const data={app:'akquise-cockpit',version:1,exportedAt:new Date().toISOString(),contacts:state.contacts,templates:state.templates,settings:state.settings};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='akquise-backup-'+todayISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Backup gespeichert','ok');
+}
+function restoreJSON(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+    r.onload=ev=>{try{
+      const d=JSON.parse(ev.target.result);
+      if(!d||!Array.isArray(d.contacts))throw new Error('kein Backup');
+      const when=d.exportedAt?new Date(d.exportedAt).toLocaleString('de-DE'):'unbekannt';
+      if(!confirm(`Backup vom ${when} wiederherstellen?\n\n${d.contacts.length} Kontakte – dabei werden ALLE aktuellen Daten in diesem Browser ersetzt.`))return;
+      state={
+        contacts:d.contacts,
+        templates:(Array.isArray(d.templates)&&d.templates.length)?d.templates:DEFAULT_TEMPLATES,
+        settings:Object.assign({linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},d.settings||{})
+      };
+      state.contacts.forEach(c=>{c.id=c.id||uid();c.log=c.log||[];if(!c.stage||!STAGES[c.stage])c.stage='neu';if(c.emailCount==null)c.emailCount=0;});
+      selected=new Set();save();closePanel();go('dashboard');
+      toast(`${state.contacts.length} Kontakte wiederhergestellt`,'ok');
+    }catch(err){toast('Datei ist kein gültiges Backup','warn');}};
+    r.readAsText(f,'utf-8');};
+  inp.click();
+}
 
 /* ============ Import modal ============ */
 function openImport(){pendingImport=null;renderImportStart();$('#importModal').classList.add('open');}
@@ -918,6 +979,84 @@ function closeImport(){$('#importModal').classList.remove('open');pendingImport=
 let _actionConfirm=null;
 function openAction(title,body,onConfirm,label){$('#actionTitle').textContent=title;$('#actionBody').innerHTML=body;$('#actionConfirm').textContent=label||'Übernehmen';_actionConfirm=onConfirm;$('#actionModal').classList.add('open');}
 function closeAction(){$('#actionModal').classList.remove('open');_actionConfirm=null;}
+
+/* ============ Outreach sequence ============ */
+let _outreachId=null,_outreachOpen=null,_outreachData=null;
+function emailTemplates(){return state.templates.filter(t=>t.channel==='email');}
+function outreachSteps(){
+  const li=state.templates.filter(t=>t.channel==='linkedin')[0]||null;
+  const steps=[{kind:'linkedin',tpl:li,label:'LinkedIn-Anfrage'}];
+  emailTemplates().forEach((t,i)=>steps.push({kind:'email',tpl:t,idx:i,label:'E-Mail '+(i+1)}));
+  return steps;
+}
+function computeNext(c){
+  if(TERMINAL.includes(c.stage))return;
+  const ec=c.emailCount||0;
+  if(ec>=state.settings.maxEmails){c.nextAction=null;c.nextActionType=null;return;}
+  if(ec>0){c.nextAction=addDaysISO(todayISO(),state.settings.emailFollowupDays);c.nextActionType='Follow-up E-Mail #'+(ec+1);return;}
+  if(c.linkedinAt){c.nextAction=addDaysISO(todayISO(),state.settings.linkedinToEmailDays);c.nextActionType='E-Mail senden (falls keine Vernetzung)';return;}
+  c.nextAction=null;c.nextActionType=null;
+}
+function openOutreach(id){const c=get(id);if(!c)return;_outreachId=id;_outreachOpen=null;renderOutreach();$('#outreachModal').classList.add('open');}
+function closeOutreach(){$('#outreachModal').classList.remove('open');_outreachId=null;_outreachData=null;}
+function renderOutreach(){
+  const c=get(_outreachId);if(!c)return;
+  const steps=outreachSteps();
+  const doneOf=s=>s.kind==='linkedin'?!!c.linkedinAt:(c.emailCount||0)>s.idx;
+  let nextKey=null;for(const s of steps){if(!doneOf(s)){nextKey=s.kind==='linkedin'?'li':'em'+s.idx;break;}}
+  if(_outreachOpen===null)_outreachOpen=nextKey;
+  _outreachData={li:steps[0].tpl?fillTpl(steps[0].tpl.body,c):'',mails:emailTemplates().map(t=>({to:c.email||'',subj:fillTpl(t.subject,c),body:fillTpl(t.body,c)}))};
+  const rows=steps.map((s,n)=>{
+    const key=s.kind==='linkedin'?'li':'em'+s.idx;
+    const done=doneOf(s),isNext=key===nextKey&&!done,open=key===_outreachOpen;
+    const status=done?'<span style="color:var(--green)">Erledigt ✓</span>':isNext?'<span style="color:var(--primary-ink)">Nächster Schritt</span>':'<span style="color:var(--ink-3)">offen</span>';
+    let body='';
+    if(open&&s.kind==='linkedin'){
+      const msg=_outreachData.li;
+      body=`<div class="ostep-body">
+        <div class="ofield"><div class="ofield-label">Nachricht ${s.tpl?`<button class="copy-btn" onclick="copyLi(this)">Kopieren</button>`:''}</div><div class="ofield-val">${s.tpl?esc(msg):'<span style=\"color:var(--ink-3)\">Keine LinkedIn-Vorlage hinterlegt – unter „Vorlagen" anlegen.</span>'}</div></div>
+        <div class="ostep-actions">
+          ${c.linkedin?`<button class="btn btn-sm btn-ghost act-li" onclick="openProfile()">Profil öffnen</button>`:''}
+          <label class="ocheck"><input type="checkbox" ${done?'checked':''} onchange="toggleLinkedIn(this.checked)"> Anfrage gestellt</label>
+        </div></div>`;
+    } else if(open&&s.kind==='email'){
+      const d=_outreachData.mails[s.idx];const to=d.to;
+      body=`<div class="ostep-body">
+        <div class="ofield"><div class="ofield-label">An ${to?`<button class="copy-btn" onclick="copyMail(this,${s.idx},'to')">Kopieren</button>`:''}</div><div class="ofield-val">${to?esc(to):'<span style=\"color:var(--red)\">Keine E-Mail-Adresse hinterlegt</span>'}</div></div>
+        <div class="ofield"><div class="ofield-label">Betreff <button class="copy-btn" onclick="copyMail(this,${s.idx},'subj')">Kopieren</button></div><div class="ofield-val">${esc(d.subj)}</div></div>
+        <div class="ofield"><div class="ofield-label">Nachricht <button class="copy-btn" onclick="copyMail(this,${s.idx},'body')">Kopieren</button></div><div class="ofield-val">${esc(d.body)}</div></div>
+        <div class="ostep-actions">
+          ${to?`<button class="btn btn-sm btn-ghost act-mail" onclick="mailtoStep(${s.idx})">E-Mail-Programm öffnen</button>`:''}
+          <button class="btn btn-sm btn-ghost" onclick="copyAll(${s.idx})">Alles kopieren</button>
+          <label class="ocheck"><input type="checkbox" ${done?'checked':''} onchange="toggleEmail(${s.idx},this.checked)"> Als gesendet markieren</label>
+        </div></div>`;
+    }
+    return `<div class="ostep ${done?'done':''} ${isNext?'next':''}">
+      <div class="ostep-head" onclick="toggleOpen('${key}')">
+        <div class="ostep-badge">${done?'✓':(n+1)}</div>
+        <div style="min-width:0"><div class="ostep-title">${s.label}</div><div class="ostep-sub">${s.kind==='linkedin'?'Vernetzungsanfrage':'E-Mail-Vorlage'}</div></div>
+        <div class="ostep-status">${status}</div>
+      </div>${body}</div>`;
+  }).join('');
+  $('#outreachTitle').textContent=fullName(c);
+  $('#outreachSub').innerHTML=`${[esc(c.unternehmen),esc(c.branche)].filter(Boolean).join(' · ')||'—'}`;
+  $('#outreachBody').innerHTML=rows;
+}
+function toggleOpen(key){_outreachOpen=_outreachOpen===key?'':key;renderOutreach();}
+function flashBtn(btn){if(!btn)return;const o=btn.textContent;btn.textContent='Kopiert ✓';setTimeout(()=>{btn.textContent=o;},1400);}
+function copyLi(btn){copy(_outreachData.li);flashBtn(btn);}
+function copyMail(btn,i,field){copy(_outreachData.mails[i][field]||'');flashBtn(btn);}
+function copyAll(i){const d=_outreachData.mails[i];copy(`An: ${d.to}\nBetreff: ${d.subj}\n\n${d.body}`);toast('E-Mail komplett kopiert','ok');}
+function mailtoStep(i){const c=get(_outreachId);const d=_outreachData.mails[i];if(!c.email)return;window.location.href=`mailto:${c.email}?subject=${encodeURIComponent(d.subj)}&body=${encodeURIComponent(d.body)}`;}
+function openProfile(){const c=get(_outreachId);if(c&&c.linkedin)window.open(normUrl(c.linkedin),'_blank','noopener');}
+function toggleLinkedIn(check){const c=get(_outreachId);if(!c)return;
+  if(check){c.linkedinAt=c.linkedinAt||Date.now();if(!TERMINAL.includes(c.stage)&&c.stage==='neu')c.stage='linkedin';logAdd(c,'LinkedIn-Anfrage erledigt');}
+  else{c.linkedinAt=null;if(!TERMINAL.includes(c.stage)&&(c.emailCount||0)===0)c.stage='neu';logAdd(c,'LinkedIn-Schritt zurückgenommen');}
+  computeNext(c);save();_outreachOpen=null;renderOutreach();rerender();}
+function toggleEmail(i,check){const c=get(_outreachId);if(!c)return;
+  if(check){c.emailCount=Math.max(c.emailCount||0,i+1);c.lastEmailAt=Date.now();if(!TERMINAL.includes(c.stage))c.stage='email';logAdd(c,'E-Mail '+(i+1)+' als gesendet markiert');}
+  else{c.emailCount=i;if((c.emailCount||0)===0&&!TERMINAL.includes(c.stage))c.stage=c.linkedinAt?'linkedin':'neu';logAdd(c,'E-Mail '+(i+1)+' zurückgenommen');}
+  computeNext(c);save();_outreachOpen=null;renderOutreach();rerender();}
 
 /* ============ Clipboard / toast ============ */
 function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));}else fallbackCopy(text);}
@@ -947,10 +1086,11 @@ $('#importCancel').onclick=closeImport;$('#importModal').onclick=e=>{if(e.target
 $('#importConfirm').onclick=confirmImport;
 $('#actionCancel').onclick=closeAction;$('#actionModal').onclick=e=>{if(e.target.id==='actionModal')closeAction();};
 $('#actionConfirm').onclick=()=>{if(_actionConfirm){if(_actionConfirm()===false)return;}closeAction();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();closeAction();}});
+$('#outreachModal').onclick=e=>{if(e.target.id==='outreachModal')closeOutreach();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();closeAction();closeOutreach();}});
 
 /* expose */
-window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;
 
 /* init */
 renderNav();go('dashboard');

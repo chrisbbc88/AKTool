@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akquise-Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F7FB; --surface:#FFFFFF; --surface-2:#FBFCFE;
+    --ink:#112233; --ink-2:#51637A; --ink-3:#8A99AD;
+    --line:#E4EAF2; --line-2:#EDF1F7;
+    --primary:#0FA47F; --primary-ink:#0A7D60; --primary-soft:#E2F6EF;
+    --linkedin:#0A66C2; --linkedin-soft:#E7F0FB;
+    --indigo:#5B6CF0; --indigo-soft:#ECEEFE;
+    --green:#1FA85B; --green-soft:#E3F6EB;
+    --amber:#D9870A; --amber-soft:#FBF0DC;
+    --red:#E5484D; --red-soft:#FCE9E9;
+    --gold:#B8860B; --gold-soft:#F7EFD6;
+    --slate-soft:#EDF1F7;
+    --shadow:0 1px 2px rgba(16,34,51,.04), 0 10px 30px rgba(16,34,51,.06);
+    --shadow-lg:0 16px 50px rgba(16,34,51,.16);
+    --radius:14px; --radius-sm:10px;
+    --display:'Bricolage Grotesque',system-ui,sans-serif;
+    --body:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--body);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+  input,select,textarea{font-family:inherit;font-size:inherit;color:var(--ink)}
+  a{color:var(--linkedin);text-decoration:none}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#D5DEEA;border-radius:8px;border:2px solid var(--bg)}
+
+  /* Layout */
+  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+  .sidebar{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+  .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 20px}
+  .brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--primary),#13C495);display:grid;place-items:center;color:#fff;font-family:var(--display);font-weight:800;font-size:19px;box-shadow:0 6px 16px rgba(15,164,127,.32)}
+  .brand b{font-family:var(--display);font-weight:700;font-size:16.5px;letter-spacing:-.02em;display:block;line-height:1.1}
+  .brand span{font-size:11.5px;color:var(--ink-3);font-weight:500}
+  .nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--radius-sm);color:var(--ink-2);font-weight:500;width:100%;text-align:left;transition:.13s;position:relative}
+  .nav-item svg{width:19px;height:19px;flex:0 0 19px;stroke-width:1.9}
+  .nav-item:hover{background:var(--slate-soft);color:var(--ink)}
+  .nav-item.active{background:var(--primary-soft);color:var(--primary-ink);font-weight:600}
+  .nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;padding:0 6px}
+  .nav-item.active .badge{background:var(--red)}
+  .nav-sep{height:1px;background:var(--line);margin:8px 4px}
+  .sidebar-foot{margin-top:auto;font-size:11px;color:var(--ink-3);padding:8px;line-height:1.5}
+
+  .main{min-width:0;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;z-index:20;background:rgba(244,247,251,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:18px 32px;display:flex;align-items:center;gap:16px}
+  .topbar h1{font-family:var(--display);font-size:23px;font-weight:700;letter-spacing:-.025em}
+  .topbar .sub{color:var(--ink-2);font-size:13px;margin-top:1px}
+  .topbar-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .content{padding:26px 32px 60px;max-width:1320px;width:100%}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:10px;font-weight:600;font-size:13.5px;transition:.13s;white-space:nowrap;border:1px solid transparent}
+  .btn svg{width:17px;height:17px;stroke-width:2}
+  .btn-primary{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(15,164,127,.26)}
+  .btn-primary:hover{background:var(--primary-ink)}
+  .btn-ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:#CFDAE8;background:var(--surface-2)}
+  .btn-sm{padding:6px 11px;font-size:12.5px;border-radius:9px;gap:6px}
+  .btn-sm svg{width:15px;height:15px}
+  .btn-icon{width:34px;height:34px;padding:0;justify-content:center;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2)}
+  .btn-icon:hover{color:var(--ink);border-color:#CFDAE8}
+  .btn-icon svg{width:17px;height:17px}
+
+  /* KPI cards */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px;margin-bottom:22px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:17px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:13px}
+  .kpi .ico svg{width:18px;height:18px;stroke-width:2}
+  .kpi .val{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+  .kpi .lbl{color:var(--ink-2);font-size:12.5px;font-weight:500;margin-top:6px}
+  .kpi .pct{display:inline-block;margin-top:9px;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:20px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card-head{padding:17px 20px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:12px}
+  .card-head h2{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:-.02em}
+  .card-head .hint{color:var(--ink-3);font-size:12px}
+  .card-body{padding:18px 20px}
+
+  .grid-2{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;margin-top:20px}
+
+  /* Funnel */
+  .funnel-row{display:flex;align-items:center;gap:14px;margin-bottom:11px}
+  .funnel-row:last-child{margin-bottom:0}
+  .funnel-label{width:150px;flex:0 0 150px;font-size:13px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+  .funnel-dot{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
+  .funnel-track{flex:1;height:30px;background:var(--slate-soft);border-radius:8px;overflow:hidden;position:relative}
+  .funnel-fill{height:100%;border-radius:8px;display:flex;align-items:center;padding:0 11px;color:#fff;font-weight:700;font-size:12.5px;min-width:34px;transition:width .6s cubic-bezier(.2,.8,.2,1);font-variant-numeric:tabular-nums}
+  .funnel-pct{width:54px;flex:0 0 54px;text-align:right;font-size:12.5px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+
+  /* Branche bars */
+  .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:13px}
+  .bar-row:last-child{margin-bottom:0}
+  .bar-name{width:120px;flex:0 0 120px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{flex:1;height:9px;background:var(--slate-soft);border-radius:6px;overflow:hidden}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),#22C29B);border-radius:6px}
+  .bar-val{width:34px;flex:0 0 34px;text-align:right;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+
+  /* Badges */
+  .badge-stage{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+  .badge-stage .dot{width:7px;height:7px;border-radius:50%}
+  .s-neu{background:var(--slate-soft);color:var(--ink-2)} .s-neu .dot{background:var(--ink-3)}
+  .s-linkedin{background:var(--linkedin-soft);color:var(--linkedin)} .s-linkedin .dot{background:var(--linkedin)}
+  .s-vernetzt{background:var(--indigo-soft);color:var(--indigo)} .s-vernetzt .dot{background:var(--indigo)}
+  .s-email{background:var(--primary-soft);color:var(--primary-ink)} .s-email .dot{background:var(--primary)}
+  .s-geantwortet{background:var(--green-soft);color:var(--green)} .s-geantwortet .dot{background:var(--green)}
+  .s-termin{background:var(--gold-soft);color:var(--gold)} .s-termin .dot{background:var(--gold)}
+  .s-kein_interesse{background:var(--red-soft);color:var(--red)} .s-kein_interesse .dot{background:var(--red)}
+  .s-nicht_kontaktieren{background:#E9EDF2;color:#7A8AA0} .s-nicht_kontaktieren .dot{background:#9AA8BC}
+
+  .due-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:7px}
+  .due-over{background:var(--red-soft);color:var(--red)}
+  .due-today{background:var(--amber-soft);color:var(--amber)}
+  .due-future{color:var(--ink-3);font-weight:500}
+
+  /* Table */
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .search{flex:1;min-width:200px;position:relative}
+  .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink-3);stroke-width:2}
+  .search input{width:100%;padding:10px 14px 10px 40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);outline:none;transition:.13s}
+  .search input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  select.filter{padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surface);outline:none;font-weight:500;color:var(--ink-2);cursor:pointer}
+  select.filter:focus{border-color:var(--primary)}
+
+  .tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  tbody td{padding:13px 16px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr{transition:.1s}
+  tbody tr:hover{background:var(--surface-2)}
+  .cell-name{font-weight:600;color:var(--ink);cursor:pointer}
+  .cell-name:hover{color:var(--primary-ink)}
+  .cell-sub{font-size:12px;color:var(--ink-3);font-weight:400}
+  .cell-comp{font-weight:500}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end}
+  .act-li{color:var(--linkedin)!important;border-color:var(--linkedin-soft)!important}
+  .act-li:hover{background:var(--linkedin-soft)!important}
+  .act-mail{color:var(--primary-ink)!important;border-color:var(--primary-soft)!important}
+  .act-mail:hover{background:var(--primary-soft)!important}
+  .act-done{color:var(--ink-3)}
+
+  /* Action cards (Heute) */
+  .queue{display:flex;flex-direction:column;gap:12px}
+  .qcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;display:flex;align-items:center;gap:16px;transition:.13s}
+  .qcard:hover{border-color:#CFDAE8;box-shadow:var(--shadow-lg)}
+  .qcard.over{border-left:3px solid var(--red)}
+  .qcard.today{border-left:3px solid var(--amber)}
+  .qcard .avatar{width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:var(--primary-soft);color:var(--primary-ink);display:grid;place-items:center;font-weight:700;font-family:var(--display);font-size:16px}
+  .qmeta{min-width:0;flex:1}
+  .qmeta .nm{font-weight:600;font-size:15px}
+  .qmeta .det{color:var(--ink-2);font-size:12.5px;margin-top:1px}
+  .qmeta .task{margin-top:7px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .qtask-txt{font-size:13px;font-weight:600;color:var(--ink)}
+  .qactions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+
+  /* Detail panel */
+  .overlay{position:fixed;inset:0;background:rgba(16,34,51,.34);backdrop-filter:blur(2px);z-index:50;opacity:0;pointer-events:none;transition:.2s}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .panel{position:fixed;top:0;right:0;height:100vh;width:480px;max-width:92vw;background:var(--bg);z-index:60;box-shadow:var(--shadow-lg);transform:translateX(100%);transition:transform .26s cubic-bezier(.3,.8,.3,1);display:flex;flex-direction:column}
+  .panel.open{transform:translateX(0)}
+  .panel-head{padding:20px 22px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:14px}
+  .panel-head .avatar{width:50px;height:50px;flex:0 0 50px;border-radius:13px;background:var(--primary-soft);color:var(--primary-ink);display:grid;place-items:center;font-weight:700;font-family:var(--display);font-size:19px}
+  .panel-head h3{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.02em}
+  .panel-head .ph-sub{color:var(--ink-2);font-size:13px;margin-top:2px}
+  .panel-close{margin-left:auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);flex:0 0 34px}
+  .panel-close:hover{background:var(--slate-soft);color:var(--ink)}
+  .panel-body{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:18px}
+  .psec-title{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:11px}
+  .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .field{margin-bottom:11px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);outline:none;transition:.13s}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .field textarea{resize:vertical;min-height:64px}
+  .grid-fld{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stage-pick{display:flex;flex-wrap:wrap;gap:7px}
+  .stage-opt{padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface)}
+  .stage-opt:hover{border-color:#CFDAE8}
+  .stage-opt.sel{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
+
+  .log{position:relative;padding-left:20px}
+  .log-item{position:relative;padding:0 0 14px 8px;border-left:2px solid var(--line)}
+  .log-item:last-child{border-left-color:transparent;padding-bottom:0}
+  .log-item::before{content:'';position:absolute;left:-6px;top:3px;width:9px;height:9px;border-radius:50%;background:var(--primary);border:2px solid var(--surface)}
+  .log-txt{font-size:13px;font-weight:500}
+  .log-time{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+
+  /* Templates */
+  .tpl-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px}
+  .tpl-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+  .tpl-head .chan{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em}
+  .chan-li{background:var(--linkedin-soft);color:var(--linkedin)}
+  .chan-mail{background:var(--primary-soft);color:var(--primary-ink)}
+  .tpl-name{font-weight:700;font-family:var(--display);font-size:15px}
+  .vars{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .var-chip{font-size:11.5px;font-weight:600;font-family:var(--body);background:var(--slate-soft);color:var(--ink-2);padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+  .var-chip:hover{border-color:#CFDAE8;color:var(--ink)}
+
+  /* Settings */
+  .set-row{display:flex;align-items:center;gap:16px;padding:15px 0;border-bottom:1px solid var(--line-2)}
+  .set-row:last-child{border-bottom:none}
+  .set-info{flex:1}
+  .set-info b{font-weight:600;font-size:14px}
+  .set-info p{color:var(--ink-2);font-size:12.5px;margin-top:2px}
+  .set-row input[type=number]{width:74px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;outline:none;text-align:center;font-weight:600}
+  .set-row input:focus{border-color:var(--primary)}
+
+  /* Empty */
+  .empty{text-align:center;padding:64px 20px;color:var(--ink-2)}
+  .empty .ico{width:62px;height:62px;border-radius:18px;background:var(--primary-soft);color:var(--primary-ink);display:grid;place-items:center;margin:0 auto 18px}
+  .empty .ico svg{width:30px;height:30px;stroke-width:1.8}
+  .empty h3{font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink);margin-bottom:7px}
+  .empty p{max-width:380px;margin:0 auto 20px;font-size:13.5px}
+
+  /* Toast */
+  .toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:9px;align-items:center}
+  .toast{background:var(--ink);color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:10px;animation:tin .25s ease;max-width:90vw}
+  .toast svg{width:18px;height:18px;stroke-width:2.2;flex:0 0 18px}
+  .toast.ok svg{color:#3DDC97} .toast.warn svg{color:#FFB454}
+  @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Modal */
+  .modal-ov{position:fixed;inset:0;background:rgba(16,34,51,.42);backdrop-filter:blur(3px);z-index:70;display:none;place-items:center;padding:20px}
+  .modal-ov.open{display:grid}
+  .modal{background:var(--surface);border-radius:18px;box-shadow:var(--shadow-lg);width:540px;max-width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
+  .modal-head{padding:20px 24px;border-bottom:1px solid var(--line)}
+  .modal-head h3{font-family:var(--display);font-size:18px;font-weight:700}
+  .modal-head p{color:var(--ink-2);font-size:13px;margin-top:3px}
+  .modal-body{padding:22px 24px;overflow-y:auto}
+  .modal-foot{padding:16px 24px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;background:var(--surface-2)}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:34px 20px;text-align:center;transition:.15s;cursor:pointer}
+  .drop:hover,.drop.drag{border-color:var(--primary);background:var(--primary-soft)}
+  .drop svg{width:34px;height:34px;color:var(--primary);stroke-width:1.8;margin-bottom:10px}
+  .drop b{font-weight:600;display:block;margin-bottom:4px}
+  .drop span{font-size:12.5px;color:var(--ink-2)}
+  .map-preview{margin-top:18px;font-size:13px}
+  .map-line{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-2)}
+  .map-line .src{font-weight:600;color:var(--ink)}
+  .map-line .arr{color:var(--ink-3)}
+  .map-line .tgt{color:var(--primary-ink);font-weight:600}
+  .map-line .miss{color:var(--ink-3)}
+
+  .mobtab{display:none}
+  @media(max-width:900px){
+    .app{grid-template-columns:1fr}
+    .sidebar{position:fixed;bottom:0;left:0;right:0;top:auto;height:auto;width:100%;flex-direction:row;border-right:none;border-top:1px solid var(--line);padding:8px;z-index:40;overflow-x:auto;gap:2px}
+    .brand,.nav-sep,.sidebar-foot{display:none}
+    .nav-item{flex-direction:column;gap:3px;font-size:10.5px;padding:7px 10px;min-width:64px;text-align:center}
+    .nav-item .badge{position:absolute;top:2px;right:8px;margin:0}
+    .main{padding-bottom:74px}
+    .topbar,.content{padding-left:18px;padding-right:18px}
+    .grid-2{grid-template-columns:1fr}
+    .topbar h1{font-size:20px}
+    thead th:nth-child(3),tbody td:nth-child(3){display:none}
+  }
+  @media(max-width:560px){
+    .quick-actions{grid-template-columns:1fr}
+    .qcard{flex-wrap:wrap}
+    .qactions{width:100%;justify-content:flex-start}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div><b>Akquise-Cockpit</b><span>Outreach &amp; Tracking</span></div>
+    </div>
+    <button class="nav-item active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-view="heute">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+      <span>Heute</span><span class="badge" id="navDue" style="display:none">0</span>
+    </button>
+    <button class="nav-item" data-view="kontakte">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Kontakte</span>
+    </button>
+    <div class="nav-sep"></div>
+    <button class="nav-item" data-view="vorlagen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
+      <span>Vorlagen</span>
+    </button>
+    <button class="nav-item" data-view="einstellungen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Einstellungen</span>
+    </button>
+    <div class="sidebar-foot">Daten werden lokal in deinem Browser gespeichert. Exportiere regelmäßig als Backup.</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="viewTitle">Dashboard</h1>
+        <div class="sub" id="viewSub">Überblick über deine Akquise</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="btnExport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export
+        </button>
+        <button class="btn btn-primary" id="btnImport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV importieren
+        </button>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<!-- Detail panel -->
+<div class="overlay" id="overlay"></div>
+<aside class="panel" id="panel"></aside>
+
+<!-- Import modal -->
+<div class="modal-ov" id="importModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Kontakte importieren</h3><p>Lade eine CSV-Datei hoch. Spalten werden automatisch erkannt (Komma oder Semikolon).</p></div>
+    <div class="modal-body">
+      <div class="drop" id="drop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        <b>CSV-Datei hierher ziehen</b><span>oder klicken zum Auswählen</span>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,text/csv" style="display:none">
+      <div id="mapPreview"></div>
+      <div style="margin-top:16px;font-size:12.5px;color:var(--ink-2)">
+        Keine Datei? <a href="#" id="sampleLink" style="font-weight:600">Beispiel-CSV herunterladen</a>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="importCancel">Abbrechen</button>
+      <button class="btn btn-primary" id="importConfirm" disabled>Importieren</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+"use strict";
+/* ============ State ============ */
+const KEY='akquise_cockpit_v1';
+const STAGES={
+  neu:{label:'Neu',cls:'s-neu'},
+  linkedin:{label:'LinkedIn angefragt',cls:'s-linkedin'},
+  vernetzt:{label:'Vernetzt',cls:'s-vernetzt'},
+  email:{label:'E-Mail gesendet',cls:'s-email'},
+  geantwortet:{label:'Geantwortet',cls:'s-geantwortet'},
+  termin:{label:'Termin',cls:'s-termin'},
+  kein_interesse:{label:'Kein Interesse',cls:'s-kein_interesse'},
+  nicht_kontaktieren:{label:'Nicht kontaktieren',cls:'s-nicht_kontaktieren'}
+};
+const TERMINAL=['geantwortet','termin','kein_interesse','nicht_kontaktieren'];
+const STAGE_ORDER=['neu','linkedin','vernetzt','email','geantwortet','termin'];
+
+const DEFAULT_TEMPLATES=[
+  {id:'li1',channel:'linkedin',name:'LinkedIn Vernetzung',subject:'',
+   body:'Hallo {vorname}, ich unterstütze Unternehmen aus der {branche}-Branche dabei, ihren Vertrieb planbar und strukturiert aufzustellen. Ein kurzer Austausch mit Ihnen würde mich freuen – beste Grüße, Christian'},
+  {id:'m1',channel:'email',name:'E-Mail 1 – Erstkontakt',subject:'Kurze Frage zum Vertrieb bei {unternehmen}',
+   body:'Hallo {vorname},\n\nich habe versucht, Sie über LinkedIn zu erreichen, und melde mich daher kurz direkt.\n\nViele Unternehmen aus der {branche}-Branche kennen das Problem: gute Leistung, aber der Vertrieb läuft eher zufällig als planbar. Genau hier setze ich an – mit strukturierten Vertriebsprozessen und einer klaren Akquise.\n\nHätten Sie kommende Woche 15 Minuten für einen kurzen Austausch?\n\nBeste Grüße\nChristian'},
+  {id:'m2',channel:'email',name:'E-Mail 2 – Follow-up',subject:'Nachfrage: Vertrieb bei {unternehmen}',
+   body:'Hallo {vorname},\n\nich wollte kurz nachhaken – meine letzte Nachricht ist vielleicht untergegangen.\n\nFalls das Thema planbarer Vertrieb bei {unternehmen} gerade relevant ist, würde ich mich über eine kurze Rückmeldung freuen. Ein unverbindliches Gespräch lohnt sich erfahrungsgemäß.\n\nBeste Grüße\nChristian'},
+  {id:'m3',channel:'email',name:'E-Mail 3 – Letzter Impuls',subject:'Letzte Nachricht von mir, {vorname}',
+   body:'Hallo {vorname},\n\nich möchte nicht aufdringlich sein – das ist meine letzte Nachricht zum Thema.\n\nSollten Sie zu einem späteren Zeitpunkt Interesse an einem strukturierten Vertriebsaufbau haben, melden Sie sich gerne jederzeit.\n\nBeste Grüße\nChristian'}
+];
+
+let state=load();
+function load(){
+  try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&r.contacts)return r;}catch(e){}
+  return {contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4}};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('Speichern fehlgeschlagen (Speicher voll?)','warn');}}
+
+/* ============ Helpers ============ */
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function addDaysISO(d,n){const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10);}
+function fmtDate(iso){if(!iso)return '–';const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('de-DE',{day:'2-digit',month:'short'});}
+function fmtDateTime(ts){return new Date(ts).toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+function initials(c){return ((c.vorname||' ')[0]+(c.nachname||' ')[0]).toUpperCase().trim()||'?';}
+function fullName(c){return [c.vorname,c.nachname].filter(Boolean).join(' ')||'(ohne Namen)';}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function dueState(iso){if(!iso)return 'none';const t=todayISO();if(iso<t)return 'over';if(iso===t)return 'today';return 'future';}
+function fillTpl(tpl,c){return (tpl||'').replace(/\{(\w+)\}/g,(m,k)=>c[k]!=null&&c[k]!==''?c[k]:m);}
+function normUrl(u){if(!u)return '';return /^https?:\/\//i.test(u)?u:'https://'+u.replace(/^\/+/,'');}
+
+/* ============ Cadence ============ */
+function logAdd(c,text){c.log=c.log||[];c.log.unshift({t:Date.now(),text});}
+function advance(c,minStage){const cur=STAGE_ORDER.indexOf(c.stage),nxt=STAGE_ORDER.indexOf(minStage);if(!TERMINAL.includes(c.stage)&&nxt>cur)c.stage=minStage;}
+
+function doLinkedIn(id){const c=get(id);if(!c)return;
+  if(c.linkedin){window.open(normUrl(c.linkedin),'_blank','noopener');}
+  const t=state.templates.find(x=>x.channel==='linkedin');
+  if(t){copy(fillTpl(t.body,c));}
+  c.linkedinAt=Date.now();advance(c,'linkedin');
+  if(!TERMINAL.includes(c.stage)){c.nextAction=addDaysISO(todayISO(),state.settings.linkedinToEmailDays);c.nextActionType='E-Mail senden (falls keine Vernetzung)';}
+  logAdd(c,'LinkedIn-Anfrage gestellt'+(t?' · Nachricht kopiert':''));
+  save();toast(c.linkedin?'LinkedIn geöffnet · Nachricht kopiert':'Als LinkedIn-Anfrage markiert','ok');rerender();
+}
+function doAccepted(id){const c=get(id);if(!c)return;c.vernetztAt=Date.now();advance(c,'vernetzt');
+  if(!TERMINAL.includes(c.stage)){c.nextAction=todayISO();c.nextActionType='Folgenachricht an Vernetzung senden';}
+  logAdd(c,'Vernetzung angenommen');save();toast('Als vernetzt markiert','ok');rerender();
+}
+function doEmail(id,tplId){const c=get(id);if(!c)return;
+  const t=state.templates.find(x=>x.id===tplId)||state.templates.find(x=>x.channel==='email');
+  if(c.email&&t){const sub=encodeURIComponent(fillTpl(t.subject,c));const body=encodeURIComponent(fillTpl(t.body,c));window.location.href=`mailto:${c.email}?subject=${sub}&body=${body}`;}
+  c.emailCount=(c.emailCount||0)+1;c.lastEmailAt=Date.now();advance(c,'email');
+  if(c.emailCount>=state.settings.maxEmails){c.nextAction=null;c.nextActionType=null;logAdd(c,`E-Mail #${c.emailCount} gesendet · Kadenz abgeschlossen`);}
+  else if(!TERMINAL.includes(c.stage)){c.nextAction=addDaysISO(todayISO(),state.settings.emailFollowupDays);c.nextActionType=`Follow-up E-Mail #${c.emailCount+1}`;logAdd(c,`E-Mail #${c.emailCount} gesendet`);}
+  save();toast(c.email?'E-Mail-Entwurf geöffnet':'Als E-Mail markiert','ok');rerender();
+}
+function doReplied(id){const c=get(id);if(!c)return;c.repliedAt=Date.now();c.stage='geantwortet';c.nextAction=null;c.nextActionType=null;logAdd(c,'Hat geantwortet');save();toast('Als „geantwortet" markiert','ok');rerender();}
+function setStage(id,st){const c=get(id);if(!c)return;c.stage=st;if(TERMINAL.includes(st)&&st!=='geantwortet'){c.nextAction=null;c.nextActionType=null;}logAdd(c,'Status: '+STAGES[st].label);save();rerender();}
+function snooze(id,n){const c=get(id);if(!c)return;const base=c.nextAction&&c.nextAction>todayISO()?c.nextAction:todayISO();c.nextAction=addDaysISO(base,n);logAdd(c,`Erinnerung um ${n} Tage verschoben`);save();toast(`Verschoben auf ${fmtDate(c.nextAction)}`,'ok');rerender();}
+function get(id){return state.contacts.find(c=>c.id===id);}
+
+/* ============ Derived ============ */
+function dueContacts(){return state.contacts.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future'&&dueState(c.nextAction)!=='none').sort((a,b)=>a.nextAction<b.nextAction?-1:1);}
+function stats(){
+  const cs=state.contacts,n=cs.length;
+  const li=cs.filter(c=>c.linkedinAt).length;
+  const vn=cs.filter(c=>c.vernetztAt).length;
+  const em=cs.filter(c=>(c.emailCount||0)>0).length;
+  const ga=cs.filter(c=>c.repliedAt).length;
+  const tm=cs.filter(c=>c.stage==='termin').length;
+  const mails=cs.reduce((s,c)=>s+(c.emailCount||0),0);
+  const reached=cs.filter(c=>c.linkedinAt||(c.emailCount||0)>0).length;
+  const due=dueContacts();
+  return {n,li,vn,em,ga,tm,mails,reached,
+    over:due.filter(c=>dueState(c.nextAction)==='over').length,
+    today:due.filter(c=>dueState(c.nextAction)==='today').length,
+    react:reached?Math.round(ga/reached*100):0};
+}
+
+/* ============ Render ============ */
+let activeView='dashboard',panelId=null;
+let filters={q:'',branche:'',stage:'',due:false};
+
+function rerender(){renderNav();render();if(panelId&&get(panelId))openPanel(panelId,true);}
+function renderNav(){
+  const due=stats().over+stats().today;const b=$('#navDue');
+  if(due>0){b.style.display='grid';b.textContent=due;}else{b.style.display='none';}
+}
+const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
+function go(v){activeView=v;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#viewTitle').textContent=TITLES[v][0];$('#viewSub').textContent=TITLES[v][1];render();window.scrollTo(0,0);}
+
+function render(){const el=$('#content');
+  if(state.contacts.length===0&&['dashboard','heute','kontakte'].includes(activeView)){el.innerHTML=emptyState();return;}
+  if(activeView==='dashboard')el.innerHTML=viewDashboard();
+  else if(activeView==='heute')el.innerHTML=viewHeute();
+  else if(activeView==='kontakte')el.innerHTML=viewKontakte();
+  else if(activeView==='vorlagen')el.innerHTML=viewVorlagen();
+  else if(activeView==='einstellungen')el.innerHTML=viewEinstellungen();
+  bindContent();
+}
+
+function emptyState(){return `<div class="empty"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/></svg></div>
+  <h3>Noch keine Kontakte</h3><p>Importiere deine Kontaktliste als CSV, um loszulegen. Du brauchst mindestens Vor- und Nachname – Branche und LinkedIn-Link machen den Workflow vollständig.</p>
+  <button class="btn btn-primary" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>CSV importieren</button></div>`;}
+
+function kpiCard(ico,color,val,lbl,pct,pctColor){
+  return `<div class="kpi"><div class="ico" style="background:${color}22;color:${color}">${ico}</div>
+    <div class="val">${val}</div><div class="lbl">${lbl}</div>
+    ${pct!=null?`<span class="pct" style="background:${pctColor||color}1a;color:${pctColor||color}">${pct}</span>`:''}</div>`;}
+
+function viewDashboard(){
+  const s=stats();
+  const I={people:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+    li:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2zM4 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>',
+    net:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+    mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>',
+    chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+    bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>'};
+  const due=s.over+s.today;
+  const kpis=[
+    kpiCard(I.people,'#5B6CF0',s.n,'Kontakte gesamt'),
+    kpiCard(I.li,'#0A66C2',s.li,'LinkedIn kontaktiert',s.n?Math.round(s.li/s.n*100)+'%':'0%'),
+    kpiCard(I.net,'#5B6CF0',s.vn,'Vernetzt',s.li?Math.round(s.vn/s.li*100)+'% Annahme':'0%'),
+    kpiCard(I.mail,'#0FA47F',s.em,'Per E-Mail erreicht',s.mails+' E-Mails'),
+    kpiCard(I.chat,'#1FA85B',s.ga,'Geantwortet',s.react+'% Reaktion'),
+    kpiCard(I.bell,due?'#E5484D':'#8A99AD',due,'Aufgaben fällig',s.over?s.over+' überfällig':(s.today?'heute':'alles erledigt'),due?'#E5484D':'#8A99AD')
+  ].join('');
+
+  // funnel
+  const fstages=[['Kontakte',s.n,'#8A99AD'],['LinkedIn angefragt',s.li,'#0A66C2'],['Vernetzt',s.vn,'#5B6CF0'],['E-Mail erreicht',s.em,'#0FA47F'],['Geantwortet',s.ga,'#1FA85B'],['Termin',s.tm,'#B8860B']];
+  const max=s.n||1;
+  const funnel=fstages.map(([lbl,v,col])=>`<div class="funnel-row"><div class="funnel-label"><span class="funnel-dot" style="background:${col}"></span>${lbl}</div>
+    <div class="funnel-track"><div class="funnel-fill" style="width:${Math.max(v/max*100,v?6:0)}%;background:${col}">${v}</div></div>
+    <div class="funnel-pct">${Math.round(v/max*100)}%</div></div>`).join('');
+
+  // branche
+  const bmap={};state.contacts.forEach(c=>{const b=(c.branche||'Ohne Branche').trim()||'Ohne Branche';bmap[b]=(bmap[b]||0)+1;});
+  const bsorted=Object.entries(bmap).sort((a,b)=>b[1]-a[1]).slice(0,7);const bmax=bsorted[0]?bsorted[0][1]:1;
+  const branchen=bsorted.length?bsorted.map(([n,v])=>`<div class="bar-row"><div class="bar-name" title="${esc(n)}">${esc(n)}</div><div class="bar-track"><div class="bar-fill" style="width:${v/bmax*100}%"></div></div><div class="bar-val">${v}</div></div>`).join(''):'<div style="color:var(--ink-3);font-size:13px">Keine Branchendaten</div>';
+
+  // due preview
+  const due5=dueContacts().slice(0,5);
+  const duePrev=due5.length?due5.map(c=>{const ds=dueState(c.nextAction);return `<div class="qcard ${ds==='over'?'over':'today'}" style="padding:12px 14px">
+    <div class="avatar" style="width:38px;height:38px;flex-basis:38px;font-size:14px">${initials(c)}</div>
+    <div class="qmeta"><div class="nm" style="font-size:14px">${esc(fullName(c))}</div><div class="det">${esc(c.nextActionType||'')}</div></div>
+    <span class="due-pill ${ds==='over'?'due-over':'due-today'}">${ds==='over'?'Überfällig':'Heute'} · ${fmtDate(c.nextAction)}</span></div>`;}).join(''):'<div style="color:var(--ink-3);font-size:13px;padding:6px 0">Aktuell nichts fällig. 🎉</div>';
+
+  return `<div class="kpi-grid">${kpis}</div>
+  <div class="card"><div class="card-head"><h2>Akquise-Funnel</h2><span class="hint">vom Erstkontakt bis zum Termin</span></div><div class="card-body">${funnel}</div></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-head"><h2>Aufgaben heute</h2><span class="hint" style="margin-left:auto"><button class="btn btn-sm btn-ghost" onclick="go('heute')">Alle ansehen</button></span></div><div class="card-body" style="display:flex;flex-direction:column;gap:10px">${duePrev}</div></div>
+    <div class="card"><div class="card-head"><h2>Nach Branche</h2></div><div class="card-body">${branchen}</div></div>
+  </div>`;
+}
+
+function viewHeute(){
+  const due=dueContacts();
+  if(due.length===0)return `<div class="empty"><div class="ico" style="background:var(--green-soft);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><h3>Alles erledigt</h3><p>Aktuell steht keine Aufgabe an. Neue Erinnerungen entstehen automatisch, sobald du Kontakte über LinkedIn oder E-Mail anschreibst.</p><button class="btn btn-primary" onclick="go('kontakte')">Zu den Kontakten</button></div>`;
+  const cards=due.map(c=>qcard(c)).join('');
+  return `<div style="margin-bottom:16px;color:var(--ink-2);font-size:13.5px"><b style="color:var(--ink);font-weight:600">${due.length}</b> Aufgabe${due.length>1?'n':''} fällig – arbeite sie von oben nach unten ab.</div><div class="queue">${cards}</div>`;
+}
+function qcard(c){
+  const ds=dueState(c.nextAction);
+  return `<div class="qcard ${ds==='over'?'over':'today'}">
+    <div class="avatar">${initials(c)}</div>
+    <div class="qmeta">
+      <div class="nm">${esc(fullName(c))}</div>
+      <div class="det">${[esc(c.unternehmen),esc(c.branche)].filter(Boolean).join(' · ')||'—'}</div>
+      <div class="task"><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span>
+        <span class="qtask-txt">→ ${esc(c.nextActionType||'Aufgabe')}</span>
+        <span class="due-pill ${ds==='over'?'due-over':'due-today'}">${ds==='over'?'Überfällig':'Heute'} · ${fmtDate(c.nextAction)}</span></div>
+    </div>
+    <div class="qactions">
+      ${c.linkedin?`<button class="btn btn-sm btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:''}
+      <button class="btn btn-sm btn-icon act-mail" title="E-Mail schreiben + markieren" onclick="doEmail('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+      ${c.linkedinAt&&!c.vernetztAt?`<button class="btn btn-sm btn-ghost" title="Vernetzung angenommen" onclick="doAccepted('${c.id}')">Vernetzt ✓</button>`:''}
+      <button class="btn btn-sm btn-ghost" title="+5 Tage verschieben" onclick="snooze('${c.id}',5)">+5T</button>
+      <button class="btn btn-sm btn-ghost" onclick="openPanel('${c.id}')">Details</button>
+    </div>
+  </div>`;
+}
+
+function viewKontakte(){
+  const branchen=[...new Set(state.contacts.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
+  let list=state.contacts.slice();
+  if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche].some(v=>(v||'').toLowerCase().includes(q)));}
+  if(filters.branche)list=list.filter(c=>(c.branche||'')===filters.branche);
+  if(filters.stage)list=list.filter(c=>c.stage===filters.stage);
+  if(filters.due)list=list.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future');
+  list.sort((a,b)=>{const da=a.nextAction||'9999',db=b.nextAction||'9999';return da<db?-1:da>db?1:0;});
+
+  const rows=list.map(c=>{const ds=dueState(c.nextAction);
+    return `<tr>
+      <td><div class="cell-name" onclick="openPanel('${c.id}')">${esc(fullName(c))}</div>${c.position?`<div class="cell-sub">${esc(c.position)}</div>`:''}</td>
+      <td class="cell-comp">${esc(c.unternehmen||'—')}</td>
+      <td>${esc(c.branche||'—')}</td>
+      <td><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span></td>
+      <td>${c.nextAction?`<span class="due-pill ${ds==='over'?'due-over':ds==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><div class="cell-sub">${esc(c.nextActionType||'')}</div>`:'<span class="due-future">–</span>'}</td>
+      <td><div class="row-actions">
+        ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
+        <button class="btn-icon act-mail" title="E-Mail schreiben + markieren" onclick="doEmail('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+        <button class="btn-icon" title="Details" onclick="openPanel('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/></svg></button>
+      </div></td>
+    </tr>`;}).join('');
+
+  return `<div class="toolbar">
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="searchInput" placeholder="Name, Unternehmen, E-Mail…" value="${esc(filters.q)}"></div>
+    <select class="filter" id="filterBranche"><option value="">Alle Branchen</option>${branchen.map(b=>`<option ${filters.branche===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
+    <select class="filter" id="filterStage"><option value="">Alle Status</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}" ${filters.stage===k?'selected':''}>${v.label}</option>`).join('')}</select>
+    <button class="btn btn-ghost ${filters.due?'':''}" id="filterDue" style="${filters.due?'border-color:var(--amber);color:var(--amber);background:var(--amber-soft)':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>Nur fällig</button>
+    <button class="btn btn-ghost" onclick="openManual()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Kontakt</button>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>Name</th><th>Unternehmen</th><th>Branche</th><th>Status</th><th>Nächste Aktion</th><th style="text-align:right">Aktionen</th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="6" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
+  </table></div>
+  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${state.contacts.length} Kontakten</div>`;
+}
+
+function viewVorlagen(){
+  const cards=state.templates.map(t=>`<div class="tpl-card" data-tid="${t.id}">
+    <div class="tpl-head"><span class="chan ${t.channel==='linkedin'?'chan-li':'chan-mail'}">${t.channel==='linkedin'?'LinkedIn':'E-Mail'}</span><span class="tpl-name">${esc(t.name)}</span>
+      <button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="delTemplate('${t.id}')">Löschen</button></div>
+    <div class="vars">Variablen: ${['vorname','nachname','unternehmen','branche','position'].map(v=>`<span class="var-chip" onclick="insVar('${t.id}','${v}')">{${v}}</span>`).join('')}</div>
+    <div class="field"><label>Name der Vorlage</label><input data-f="name" value="${esc(t.name)}"></div>
+    ${t.channel==='email'?`<div class="field"><label>Betreff</label><input data-f="subject" value="${esc(t.subject)}"></div>`:''}
+    <div class="field"><label>Nachricht</label><textarea data-f="body" style="min-height:${t.channel==='email'?'150px':'90px'}">${esc(t.body)}</textarea></div>
+  </div>`).join('');
+  return `<div style="display:flex;gap:10px;margin-bottom:18px">
+    <button class="btn btn-ghost" onclick="addTemplate('linkedin')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>LinkedIn-Vorlage</button>
+    <button class="btn btn-ghost" onclick="addTemplate('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>E-Mail-Vorlage</button>
+    <button class="btn btn-primary" style="margin-left:auto" onclick="saveTemplates()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Vorlagen speichern</button>
+  </div>${cards}
+  <div style="font-size:12.5px;color:var(--ink-3);margin-top:6px">Beim Anschreiben werden die Variablen automatisch durch die Kontaktdaten ersetzt. LinkedIn-Nachrichten werden in die Zwischenablage kopiert (LinkedIn erlaubt kein Vorbefüllen), E-Mails öffnen direkt deinen Mail-Client.</div>`;
+}
+
+function viewEinstellungen(){
+  const s=state.settings;
+  return `<div class="card" style="max-width:680px"><div class="card-head"><h2>Follow-up-Kadenz</h2><span class="hint">Steuert, wann Erinnerungen entstehen</span></div><div class="card-body">
+    <div class="set-row"><div class="set-info"><b>LinkedIn → erste E-Mail</b><p>Tage nach der LinkedIn-Anfrage, bis du an die erste E-Mail erinnert wirst (falls keine Vernetzung).</p></div><input type="number" id="setLi" min="0" max="60" value="${s.linkedinToEmailDays}"></div>
+    <div class="set-row"><div class="set-info"><b>E-Mail Follow-up-Takt</b><p>Tage zwischen zwei E-Mails im Follow-up-Rhythmus.</p></div><input type="number" id="setEm" min="1" max="60" value="${s.emailFollowupDays}"></div>
+    <div class="set-row"><div class="set-info"><b>Maximale E-Mails</b><p>Nach so vielen E-Mails endet die automatische Kadenz.</p></div><input type="number" id="setMax" min="1" max="10" value="${s.maxEmails}"></div>
+    <div style="margin-top:16px"><button class="btn btn-primary" onclick="saveSettings()">Kadenz speichern</button></div>
+  </div></div>
+
+  <div class="card" style="max-width:680px;margin-top:18px"><div class="card-head"><h2>Daten</h2></div><div class="card-body">
+    <div class="set-row"><div class="set-info"><b>Backup exportieren</b><p>Lade alle Kontakte inkl. Status & Verlauf als CSV herunter.</p></div><button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button></div>
+    <div class="set-row"><div class="set-info"><b>Kontakte importieren</b><p>CSV-Datei mit neuen Kontakten hochladen (Duplikate werden übersprungen).</p></div><button class="btn btn-ghost" onclick="openImport()">Import CSV</button></div>
+    <div class="set-row"><div class="set-info"><b style="color:var(--red)">Alle Daten löschen</b><p>Entfernt sämtliche Kontakte und Vorlagen unwiderruflich aus diesem Browser.</p></div><button class="btn btn-ghost" style="color:var(--red);border-color:var(--red-soft)" onclick="wipe()">Zurücksetzen</button></div>
+  </div></div>
+  <div style="max-width:680px;margin-top:14px;font-size:12px;color:var(--ink-3);line-height:1.6">Hinweis: Alle Daten liegen ausschließlich lokal in deinem Browser (localStorage). Es findet keine Übertragung an Server statt – gut für die DSGVO, aber: Bei Browser-/Cache-Löschung sind die Daten weg. Exportiere daher regelmäßig.</div>`;
+}
+
+/* ============ Detail panel ============ */
+function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
+  const t=todayISO();
+  const emailTpls=state.templates.filter(x=>x.channel==='email');
+  const stageOpts=Object.entries(STAGES).map(([k,v])=>`<button class="stage-opt ${c.stage===k?'sel':''}" onclick="setStage('${id}','${k}')">${v.label}</button>`).join('');
+  const logHtml=(c.log&&c.log.length)?c.log.map(l=>`<div class="log-item"><div class="log-txt">${esc(l.text)}</div><div class="log-time">${fmtDateTime(l.t)}</div></div>`).join(''):'<div style="color:var(--ink-3);font-size:13px">Noch keine Aktivität.</div>';
+  $('#panel').innerHTML=`
+    <div class="panel-head">
+      <div class="avatar">${initials(c)}</div>
+      <div style="min-width:0"><h3>${esc(fullName(c))}</h3><div class="ph-sub">${[esc(c.position),esc(c.unternehmen)].filter(Boolean).join(' · ')||'—'}</div>
+        <div style="margin-top:8px"><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span></div></div>
+      <button class="panel-close" onclick="closePanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="panel-body">
+      <div>
+        <div class="psec-title">Schnellaktionen</div>
+        <div class="quick-actions">
+          <button class="btn ${c.linkedin?'btn-ghost act-li':'btn-ghost'}" ${c.linkedin?'':'disabled style=opacity:.4'} onclick="doLinkedIn('${id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg>LinkedIn anfragen</button>
+          <button class="btn btn-ghost act-mail" onclick="sendEmailFromPanel('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>E-Mail senden</button>
+          <button class="btn btn-ghost" onclick="doAccepted('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 6L9 17l-5-5"/></svg>Vernetzt</button>
+          <button class="btn btn-ghost" onclick="doReplied('${id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.5 8.5 0 0 1-12.5 7.5L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z"/></svg>Hat geantwortet</button>
+        </div>
+        ${emailTpls.length>1?`<div class="field" style="margin-top:10px"><label>E-Mail-Vorlage</label><select id="panelTpl">${emailTpls.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>`:''}
+        ${c.nextAction?`<div style="margin-top:12px;padding:11px 13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:10px;font-size:13px"><span class="due-pill ${dueState(c.nextAction)==='over'?'due-over':dueState(c.nextAction)==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><span style="font-weight:600">${esc(c.nextActionType||'')}</span><button class="btn btn-sm btn-ghost" style="margin-left:auto" onclick="snooze('${id}',5)">+5T</button></div>`:''}
+      </div>
+
+      <div><div class="psec-title">Status setzen</div><div class="stage-pick">${stageOpts}</div></div>
+
+      <div><div class="psec-title">Kontaktdaten</div>
+        <div class="grid-fld"><div class="field"><label>Vorname</label><input data-c="vorname" value="${esc(c.vorname)}"></div><div class="field"><label>Nachname</label><input data-c="nachname" value="${esc(c.nachname)}"></div></div>
+        <div class="field"><label>Unternehmen</label><input data-c="unternehmen" value="${esc(c.unternehmen)}"></div>
+        <div class="grid-fld"><div class="field"><label>Branche</label><input data-c="branche" value="${esc(c.branche)}"></div><div class="field"><label>Position</label><input data-c="position" value="${esc(c.position)}"></div></div>
+        <div class="field"><label>E-Mail</label><input data-c="email" value="${esc(c.email)}"></div>
+        <div class="field"><label>LinkedIn-URL</label><input data-c="linkedin" value="${esc(c.linkedin)}"></div>
+        <div class="grid-fld"><div class="field"><label>Telefon</label><input data-c="telefon" value="${esc(c.telefon)}"></div></div>
+        <div class="field"><label>Notizen</label><textarea data-c="notizen">${esc(c.notizen)}</textarea></div>
+        <button class="btn btn-primary btn-sm" onclick="savePanel('${id}')">Änderungen speichern</button>
+      </div>
+
+      <div><div class="psec-title">Verlauf</div><div class="log">${logHtml}</div></div>
+
+      <div style="border-top:1px solid var(--line);padding-top:14px"><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="delContact('${id}')">Kontakt löschen</button></div>
+    </div>`;
+  $('#panel').classList.add('open');$('#overlay').classList.add('open');
+}
+function closePanel(){panelId=null;$('#panel').classList.remove('open');$('#overlay').classList.remove('open');}
+function savePanel(id){const c=get(id);if(!c)return;document.querySelectorAll('#panel [data-c]').forEach(el=>{c[el.dataset.c]=el.value.trim();});save();toast('Gespeichert','ok');rerender();}
+function sendEmailFromPanel(id){const sel=$('#panelTpl');doEmail(id,sel?sel.value:null);}
+function delContact(id){if(!confirm('Diesen Kontakt wirklich löschen?'))return;state.contacts=state.contacts.filter(c=>c.id!==id);closePanel();save();toast('Kontakt gelöscht','ok');rerender();}
+
+/* ============ Templates ops ============ */
+function saveTemplates(){document.querySelectorAll('.tpl-card').forEach(card=>{const t=state.templates.find(x=>x.id===card.dataset.tid);if(!t)return;card.querySelectorAll('[data-f]').forEach(el=>{t[el.dataset.f]=el.value;});});save();toast('Vorlagen gespeichert','ok');}
+function addTemplate(ch){state.templates.push({id:uid(),channel:ch,name:ch==='linkedin'?'Neue LinkedIn-Vorlage':'Neue E-Mail-Vorlage',subject:ch==='email'?'Betreff …':'',body:'Hallo {vorname}, …'});save();render();}
+function delTemplate(id){if(!confirm('Vorlage löschen?'))return;state.templates=state.templates.filter(t=>t.id!==id);save();render();}
+function insVar(tid,v){const card=document.querySelector(`.tpl-card[data-tid="${tid}"]`);if(!card)return;const ta=card.querySelector('textarea[data-f="body"]');if(!ta)return;const s=ta.selectionStart||ta.value.length;ta.value=ta.value.slice(0,s)+'{'+v+'}'+ta.value.slice(ta.selectionEnd||s);ta.focus();}
+
+/* ============ Settings ops ============ */
+function saveSettings(){state.settings.linkedinToEmailDays=Math.max(0,+$('#setLi').value||3);state.settings.emailFollowupDays=Math.max(1,+$('#setEm').value||5);state.settings.maxEmails=Math.max(1,+$('#setMax').value||4);save();toast('Kadenz gespeichert','ok');}
+function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden.'))return;state={contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4}};save();closePanel();go('dashboard');toast('Alle Daten gelöscht','ok');}
+
+/* ============ Manual add ============ */
+function openManual(){const id=uid();state.contacts.push({id,vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
+
+/* ============ CSV ============ */
+const FIELD_ALIASES={
+  vorname:['vorname','firstname','first','givenname','vname','firstnamename'],
+  nachname:['nachname','lastname','surname','last','familyname','nname','name'],
+  unternehmen:['unternehmen','firma','company','organisation','organization','account','companyname','firmenname','firmaname'],
+  branche:['branche','industry','sector','industrie','segment'],
+  email:['email','mail','emailadresse','emailaddress','mailadresse','epost'],
+  linkedin:['linkedin','linkedinurl','linkedinprofil','linkedinlink','linkedinprofile','profil','profile','liurl'],
+  telefon:['telefon','phone','tel','mobil','mobile','telefonnummer','rufnummer','phonenumber'],
+  position:['position','title','jobtitle','rolle','funktion','job','titel'],
+  notizen:['notizen','notes','notiz','anmerkung','bemerkung','comment','kommentar']
+};
+function normHead(h){return (h||'').toLowerCase().replace(/[\s._\-\/]/g,'').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');}
+function detectDelim(line){const c=(line.match(/,/g)||[]).length,s=(line.match(/;/g)||[]).length,t=(line.match(/\t/g)||[]).length;if(t>=c&&t>=s)return '\t';return s>c?';':',';}
+function parseCSV(text){
+  text=text.replace(/^\uFEFF/,'');const delim=detectDelim(text.split(/\r?\n/)[0]||'');
+  const rows=[];let row=[],field='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){field+='"';i++;}else q=false;}else field+=ch;}
+    else{if(ch==='"')q=true;else if(ch===delim){row.push(field);field='';}
+      else if(ch==='\n'){row.push(field);rows.push(row);row=[];field='';}
+      else if(ch==='\r'){}else field+=ch;}}
+  if(field.length||row.length){row.push(field);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+let pendingImport=null;
+function handleFile(file){const reader=new FileReader();reader.onload=e=>{
+  const rows=parseCSV(e.target.result);
+  if(rows.length<2){toast('CSV scheint leer oder ungültig','warn');return;}
+  const headers=rows[0];const map={};
+  headers.forEach((h,i)=>{const n=normHead(h);for(const[field,al]of Object.entries(FIELD_ALIASES)){if(al.includes(n)&&map[field]==null){map[field]=i;break;}}});
+  pendingImport={rows,map,headers};
+  renderMapPreview(map,headers,rows.length-1);
+  $('#importConfirm').disabled=(map.vorname==null&&map.nachname==null);
+};reader.readAsText(file,'utf-8');}
+function renderMapPreview(map,headers,count){
+  const labels={vorname:'Vorname',nachname:'Nachname',unternehmen:'Unternehmen',branche:'Branche',email:'E-Mail',linkedin:'LinkedIn',telefon:'Telefon',position:'Position',notizen:'Notizen'};
+  const lines=Object.keys(labels).map(f=>{const i=map[f];return `<div class="map-line">${i!=null?`<span class="src">${esc(headers[i])}</span><span class="arr">→</span><span class="tgt">${labels[f]}</span>`:`<span class="miss">— nicht gefunden —</span><span class="arr">→</span><span class="tgt" style="color:var(--ink-3)">${labels[f]}</span>`}</div>`;}).join('');
+  const warn=(map.vorname==null&&map.nachname==null)?`<div style="margin-top:12px;padding:10px 12px;background:var(--red-soft);color:var(--red);border-radius:9px;font-size:12.5px;font-weight:600">Weder Vor- noch Nachname erkannt. Bitte Spaltennamen prüfen.</div>`:'';
+  $('#mapPreview').innerHTML=`<div class="map-preview"><div style="font-weight:700;margin-bottom:8px">${count} Zeilen erkannt – Spaltenzuordnung:</div>${lines}${warn}</div>`;
+}
+function confirmImport(){if(!pendingImport)return;const{rows,map}=pendingImport;let added=0,dups=0;
+  const existing=new Set(state.contacts.map(c=>(c.email||'').toLowerCase()).filter(Boolean));
+  const existingLi=new Set(state.contacts.map(c=>(c.linkedin||'').toLowerCase()).filter(Boolean));
+  for(let r=1;r<rows.length;r++){const row=rows[r];const g=f=>map[f]!=null?(row[map[f]]||'').trim():'';
+    const email=g('email').toLowerCase(),li=g('linkedin').toLowerCase();
+    if(email&&existing.has(email)){dups++;continue;}
+    if(!email&&li&&existingLi.has(li)){dups++;continue;}
+    const vor=g('vorname'),nach=g('nachname');if(!vor&&!nach)continue;
+    state.contacts.push({id:uid(),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
+    if(email)existing.add(email);if(li)existingLi.add(li);added++;}
+  save();closeImport();go('kontakte');toast(`${added} Kontakte importiert${dups?` · ${dups} Duplikate übersprungen`:''}`,'ok');
+}
+function exportCSV(){
+  const cols=['vorname','nachname','unternehmen','branche','position','email','linkedin','telefon','stage','linkedinAt','vernetztAt','emailCount','lastEmailAt','repliedAt','nextAction','nextActionType','notizen'];
+  const head=cols.join(';');
+  const esc2=v=>{v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=state.contacts.map(c=>cols.map(k=>{let v=c[k];if(['linkedinAt','vernetztAt','lastEmailAt','repliedAt'].includes(k)&&v)v=new Date(v).toISOString();if(k==='stage'&&v)v=STAGES[v]?STAGES[v].label:v;return esc2(v);}).join(';'));
+  download('akquise-export-'+todayISO()+'.csv','\uFEFF'+head+'\n'+lines.join('\n'));
+  toast('Export erstellt','ok');
+}
+function sampleCSV(){const s='Vorname;Nachname;Unternehmen;Branche;Position;Email;LinkedIn;Telefon\nMax;Mustermann;Bau Müller GmbH;Bauunternehmen;Geschäftsführer;m.mustermann@beispiel.de;https://www.linkedin.com/in/maxmustermann;+49 170 1234567\nSandra;Schmidt;Immo Nord AG;Immobilien;Vertriebsleiterin;s.schmidt@beispiel.de;https://www.linkedin.com/in/sandraschmidt;';download('beispiel-kontakte.csv','\uFEFF'+s);}
+function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+
+/* ============ Import modal ============ */
+function openImport(){pendingImport=null;$('#mapPreview').innerHTML='';$('#importConfirm').disabled=true;$('#importModal').classList.add('open');}
+function closeImport(){$('#importModal').classList.remove('open');$('#fileInput').value='';}
+
+/* ============ Clipboard / toast ============ */
+function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));}else fallbackCopy(text);}
+function fallbackCopy(text){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);}
+function toast(msg,type){const t=document.createElement('div');t.className='toast '+(type||'');const ico=type==='warn'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>';t.innerHTML=ico+'<span>'+esc(msg)+'</span>';$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';t.style.transition='.3s';setTimeout(()=>t.remove(),300);},2600);}
+
+/* ============ Bind ============ */
+function bindContent(){
+  const si=$('#searchInput');if(si){si.oninput=e=>{filters.q=e.target.value;const p=si.selectionStart;render();const n=$('#searchInput');if(n){n.focus();n.setSelectionRange(p,p);}};}
+  const fb=$('#filterBranche');if(fb)fb.onchange=e=>{filters.branche=e.target.value;render();};
+  const fs=$('#filterStage');if(fs)fs.onchange=e=>{filters.stage=e.target.value;render();};
+  const fd=$('#filterDue');if(fd)fd.onclick=()=>{filters.due=!filters.due;render();};
+}
+document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>go(b.dataset.view));
+$('#btnImport').onclick=openImport;$('#btnExport').onclick=exportCSV;
+$('#overlay').onclick=closePanel;
+$('#importCancel').onclick=closeImport;$('#importModal').onclick=e=>{if(e.target.id==='importModal')closeImport();};
+$('#importConfirm').onclick=confirmImport;
+$('#drop').onclick=()=>$('#fileInput').click();
+$('#fileInput').onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
+const drop=$('#drop');
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+$('#sampleLink').onclick=e=>{e.preventDefault();sampleCSV();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();}});
+
+/* expose */
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;
+
+/* init */
+renderNav();go('dashboard');
+</script>
+</body>
+</html>

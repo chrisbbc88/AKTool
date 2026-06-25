@@ -57,6 +57,7 @@
   .topbar h1{font-family:var(--display);font-size:23px;font-weight:700;letter-spacing:-.025em}
   .topbar .sub{color:var(--ink-2);font-size:13px;margin-top:1px}
   .topbar-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .version{font-size:11.5px;font-weight:600;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .content{padding:26px 32px 60px;max-width:1320px;width:100%}
 
   /* Buttons */
@@ -368,6 +369,7 @@
         <button class="btn btn-primary" id="btnImport">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Importieren
         </button>
+        <span class="version" id="appVersion"></span>
       </div>
     </header>
     <div class="content" id="content"></div>
@@ -417,6 +419,7 @@
 "use strict";
 /* ============ State ============ */
 const KEY='akquise_cockpit_v1';
+const APP_VERSION='1.6.0';
 const STAGES={
   neu:{label:'Neu',cls:'s-neu'},
   linkedin:{label:'LinkedIn angefragt',cls:'s-linkedin'},
@@ -487,7 +490,7 @@ function doLinkedIn(id){const c=get(id);if(!c)return;
   logAdd(c,'LinkedIn-Anfrage gestellt'+(t?' · Nachricht kopiert':''));
   save();toast(c.linkedin?'LinkedIn geöffnet · Nachricht kopiert':'Als LinkedIn-Anfrage markiert','ok');rerender();
 }
-function doAccepted(id){const c=get(id);if(!c)return;c.vernetztAt=Date.now();advance(c,'vernetzt');
+function doAccepted(id){const c=get(id);if(!c)return;c.linkedinAt=c.linkedinAt||Date.now();c.vernetztAt=c.vernetztAt||Date.now();advance(c,'vernetzt');
   if(!TERMINAL.includes(c.stage)){c.nextAction=todayISO();c.nextActionType='Folgenachricht an Vernetzung senden';}
   logAdd(c,'Vernetzung angenommen');save();toast('Als vernetzt markiert','ok');rerender();
 }
@@ -501,9 +504,13 @@ function doEmail(id,tplId){const c=get(id);if(!c)return;
 }
 function doReplied(id){const c=get(id);if(!c)return;c.repliedAt=Date.now();c.stage='geantwortet';c.nextAction=null;c.nextActionType=null;logAdd(c,'Hat geantwortet');save();toast('Als „geantwortet" markiert','ok');rerender();}
 function applyStage(c,st){
+  const now=Date.now();
   c.stage=st;
   if(st==='neu'){c.nextAction=null;c.nextActionType=null;c.linkedinAt=null;c.vernetztAt=null;c.emailCount=0;c.lastEmailAt=null;c.repliedAt=null;logAdd(c,'Auf „Neu" zurückgesetzt');}
-  else if(st==='geantwortet'){c.repliedAt=c.repliedAt||Date.now();c.nextAction=null;c.nextActionType=null;logAdd(c,'Status: Geantwortet');}
+  else if(st==='linkedin'){c.linkedinAt=c.linkedinAt||now;logAdd(c,'Status: '+STAGES[st].label);}
+  else if(st==='vernetzt'){c.linkedinAt=c.linkedinAt||now;c.vernetztAt=c.vernetztAt||now;logAdd(c,'Status: '+STAGES[st].label);}
+  else if(st==='email'){c.emailCount=Math.max(c.emailCount||0,1);c.lastEmailAt=c.lastEmailAt||now;logAdd(c,'Status: '+STAGES[st].label);}
+  else if(st==='geantwortet'){c.repliedAt=c.repliedAt||now;c.nextAction=null;c.nextActionType=null;logAdd(c,'Status: Geantwortet');}
   else if(TERMINAL.includes(st)){c.nextAction=null;c.nextActionType=null;logAdd(c,'Status: '+STAGES[st].label);}
   else logAdd(c,'Status: '+STAGES[st].label);
 }
@@ -1110,6 +1117,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeI
 window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;
 
 /* init */
+$('#appVersion').textContent='v'+APP_VERSION;
 renderNav();go('dashboard');
 </script>
 </body>

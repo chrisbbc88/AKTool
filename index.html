@@ -132,8 +132,15 @@
   .search input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
   select.filter{padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surface);outline:none;font-weight:500;color:var(--ink-2);cursor:pointer}
   select.filter:focus{border-color:var(--primary)}
+  .colmenu-wrap{position:relative}
+  .colmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:30;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);padding:8px;min-width:190px}
+  .colmenu[hidden]{display:none}
+  .colmenu-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);padding:6px 10px 8px}
+  .colmenu-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer}
+  .colmenu-item:hover{background:var(--slate-soft)}
+  .colmenu-item input{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
 
-  .tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow-x:auto}
   table{width:100%;border-collapse:collapse}
   thead th{text-align:left;font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
   tbody td{padding:13px 16px;border-bottom:1px solid var(--line-2);vertical-align:middle}
@@ -316,7 +323,6 @@
     .topbar,.content{padding-left:18px;padding-right:18px}
     .grid-2{grid-template-columns:1fr}
     .topbar h1{font-size:20px}
-    thead th:nth-child(3),tbody td:nth-child(3){display:none}
   }
   @media(max-width:560px){
     .quick-actions{grid-template-columns:1fr}
@@ -419,7 +425,7 @@
 "use strict";
 /* ============ State ============ */
 const KEY='akquise_cockpit_v1';
-const APP_VERSION='1.6.0';
+const APP_VERSION='1.7.0';
 const STAGES={
   neu:{label:'Neu',cls:'s-neu'},
   linkedin:{label:'LinkedIn angefragt',cls:'s-linkedin'},
@@ -447,7 +453,7 @@ const DEFAULT_TEMPLATES=[
 let state=load();
 function load(){
   try{const r=JSON.parse(localStorage.getItem(KEY));if(r&&r.contacts)return r;}catch(e){}
-  return {contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4}};
+  return {contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},ui:{columns:['unternehmen','branche','stage','next']}};
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('Speichern fehlgeschlagen (Speicher voll?)','warn');}}
 
@@ -546,7 +552,8 @@ function stats(){
 /* ============ Render ============ */
 let activeView='dashboard',panelId=null;
 let selected=new Set(),lastVisibleIds=[];
-let filters={q:'',branche:'',stage:'',due:false};
+let filters={q:'',branche:'',position:'',stage:'',due:false};
+let colMenuOpen=false;
 
 function rerender(){renderNav();render();if(panelId&&get(panelId))openPanel(panelId,true);}
 function renderNav(){
@@ -554,7 +561,7 @@ function renderNav(){
   if(due>0){b.style.display='grid';b.textContent=due;}else{b.style.display='none';}
 }
 const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
-function go(v){activeView=v;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#viewTitle').textContent=TITLES[v][0];$('#viewSub').textContent=TITLES[v][1];render();window.scrollTo(0,0);}
+function go(v){activeView=v;colMenuOpen=false;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#viewTitle').textContent=TITLES[v][0];$('#viewSub').textContent=TITLES[v][1];render();window.scrollTo(0,0);}
 
 function render(){const el=$('#content');
   if(state.contacts.length===0&&['dashboard','heute','kontakte'].includes(activeView)){el.innerHTML=emptyState();return;}
@@ -647,31 +654,51 @@ function qcard(c){
   </div>`;
 }
 
+const COLS=[
+  {key:'unternehmen',label:'Unternehmen',cls:'cell-comp',cell:c=>esc(c.unternehmen||'—')},
+  {key:'branche',label:'Branche',cell:c=>esc(c.branche||'—')},
+  {key:'position',label:'Position',cell:c=>esc(c.position||'—')},
+  {key:'anrede',label:'Anrede',cell:c=>esc(c.anrede||'—')},
+  {key:'email',label:'E-Mail',cell:c=>c.email?`<a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>`:'<span class="due-future">–</span>'},
+  {key:'telefon',label:'Telefon',cell:c=>esc(c.telefon||'—')},
+  {key:'linkedin',label:'LinkedIn',cell:c=>c.linkedin?`<a href="${esc(normUrl(c.linkedin))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Profil ↗</a>`:'<span class="due-future">–</span>'},
+  {key:'stage',label:'Status',cell:c=>`<span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span>`},
+  {key:'next',label:'Nächste Aktion',cell:c=>{const ds=dueState(c.nextAction);return c.nextAction?`<span class="due-pill ${ds==='over'?'due-over':ds==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><div class="cell-sub">${esc(c.nextActionType||'')}</div>`:'<span class="due-future">–</span>';}}
+];
+function defaultCols(){return ['unternehmen','branche','stage','next'];}
+function visCols(){if(!state.ui)state.ui={};if(!Array.isArray(state.ui.columns))state.ui.columns=defaultCols();return state.ui.columns;}
+function colOn(k){return k==='name'||visCols().includes(k);}
+function toggleCol(k){const cols=visCols();const i=cols.indexOf(k);if(i>=0)cols.splice(i,1);else cols.push(k);save();render();}
+
 function viewKontakte(){
   selected=new Set([...selected].filter(id=>get(id)));
   const branchen=[...new Set(state.contacts.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
+  const positionen=[...new Set(state.contacts.map(c=>(c.position||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
   let list=state.contacts.slice();
-  if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche].some(v=>(v||'').toLowerCase().includes(q)));}
+  if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche,c.position].some(v=>(v||'').toLowerCase().includes(q)));}
   if(filters.branche)list=list.filter(c=>(c.branche||'')===filters.branche);
+  if(filters.position)list=list.filter(c=>(c.position||'')===filters.position);
   if(filters.stage)list=list.filter(c=>c.stage===filters.stage);
   if(filters.due)list=list.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future');
   list.sort((a,b)=>{const da=a.nextAction||'9999',db=b.nextAction||'9999';return da<db?-1:da>db?1:0;});
   lastVisibleIds=list.map(c=>c.id);
 
-  const rows=list.map(c=>{const ds=dueState(c.nextAction);
-    return `<tr data-id="${c.id}" class="${selected.has(c.id)?'row-sel':''}">
+  const actCell=c=>`<div class="row-actions">
+    ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
+    <button class="btn-icon act-mail" title="E-Mail-Sequenz öffnen" onclick="openOutreach('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+    <button class="btn-icon" title="Details" onclick="openPanel('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/></svg></button>
+  </div>`;
+  const nameCell=c=>`<div class="cell-name" onclick="openPanel('${c.id}')">${esc(fullName(c))}</div>${(!colOn('position')&&c.position)?`<div class="cell-sub">${esc(c.position)}</div>`:''}`;
+  const activeCols=COLS.filter(col=>colOn(col.key));
+  const colCount=activeCols.length+2;
+
+  const heads=`<th class="col-check"><input type="checkbox" id="selAll"></th><th>Name</th>${activeCols.map(col=>`<th>${col.label}</th>`).join('')}<th style="text-align:right">Aktionen</th>`;
+  const rows=list.map(c=>`<tr data-id="${c.id}" class="${selected.has(c.id)?'row-sel':''}">
       <td class="col-check"><input type="checkbox" class="row-check" data-id="${c.id}" ${selected.has(c.id)?'checked':''}></td>
-      <td><div class="cell-name" onclick="openPanel('${c.id}')">${esc(fullName(c))}</div>${c.position?`<div class="cell-sub">${esc(c.position)}</div>`:''}</td>
-      <td class="cell-comp">${esc(c.unternehmen||'—')}</td>
-      <td>${esc(c.branche||'—')}</td>
-      <td><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span></td>
-      <td>${c.nextAction?`<span class="due-pill ${ds==='over'?'due-over':ds==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><div class="cell-sub">${esc(c.nextActionType||'')}</div>`:'<span class="due-future">–</span>'}</td>
-      <td><div class="row-actions">
-        ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
-        <button class="btn-icon act-mail" title="E-Mail-Sequenz öffnen" onclick="openOutreach('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
-        <button class="btn-icon" title="Details" onclick="openPanel('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/></svg></button>
-      </div></td>
-    </tr>`;}).join('');
+      <td>${nameCell(c)}</td>
+      ${activeCols.map(col=>`<td class="${col.cls||''}">${col.cell(c)}</td>`).join('')}
+      <td>${actCell(c)}</td>
+    </tr>`).join('');
 
   const bulkBar=`<div class="bulk-bar" id="bulkBar">
     <span class="bulk-count" id="bulkCount"><b>0</b> ausgewählt</span>
@@ -682,20 +709,31 @@ function viewKontakte(){
     <button class="bulk-btn ghost" id="bulkClear">Auswahl aufheben</button>
   </div>`;
 
+  const colMenu=`<div class="colmenu-wrap">
+    <button class="btn btn-ghost" id="colBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>Spalten</button>
+    <div class="colmenu" id="colMenu" ${colMenuOpen?'':'hidden'}>
+      <div class="colmenu-title">Spalten anzeigen</div>
+      ${COLS.map(col=>`<label class="colmenu-item"><input type="checkbox" data-col="${col.key}" ${colOn(col.key)?'checked':''}> ${col.label}</label>`).join('')}
+    </div>
+  </div>`;
+
   return `<div class="toolbar">
-    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="searchInput" placeholder="Name, Unternehmen, E-Mail…" value="${esc(filters.q)}"></div>
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="searchInput" placeholder="Name, Unternehmen, Position…" value="${esc(filters.q)}"></div>
     <select class="filter" id="filterBranche"><option value="">Alle Branchen</option>${branchen.map(b=>`<option ${filters.branche===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
+    <select class="filter" id="filterPosition"><option value="">Alle Positionen</option>${positionen.map(p=>`<option ${filters.position===p?'selected':''}>${esc(p)}</option>`).join('')}</select>
     <select class="filter" id="filterStage"><option value="">Alle Status</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}" ${filters.stage===k?'selected':''}>${v.label}</option>`).join('')}</select>
     <button class="btn btn-ghost" id="filterDue" style="${filters.due?'border-color:var(--amber);color:var(--amber);background:var(--amber-soft)':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>Nur fällig</button>
+    ${colMenu}
     <button class="btn btn-ghost" onclick="openManual()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Kontakt</button>
   </div>
   ${bulkBar}
   <div class="tbl-wrap"><table>
-    <thead><tr><th class="col-check"><input type="checkbox" id="selAll"></th><th>Name</th><th>Unternehmen</th><th>Branche</th><th>Status</th><th>Nächste Aktion</th><th style="text-align:right">Aktionen</th></tr></thead>
-    <tbody>${rows||`<tr><td colspan="7" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
+    <thead><tr>${heads}</tr></thead>
+    <tbody>${rows||`<tr><td colspan="${colCount}" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
   </table></div>
-  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${state.contacts.length} Kontakten</div>`;
+  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${state.contacts.length} Kontakten${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?` · <a href="#" onclick="clearFilters();return false;" style="font-weight:600">Filter zurücksetzen</a>`:''}</div>`;
 }
+function clearFilters(){filters={q:'',branche:'',position:'',stage:'',due:false};render();}
 function selectedContacts(){return state.contacts.filter(c=>selected.has(c.id));}
 function updateBulkUI(){const bar=$('#bulkBar');if(!bar)return;const n=selected.size;bar.style.display=n?'flex':'none';
   const cnt=$('#bulkCount');if(cnt)cnt.innerHTML=`<b>${n}</b> ausgewählt`;
@@ -814,7 +852,7 @@ function insVar(tid,v){const card=document.querySelector(`.tpl-card[data-tid="${
 
 /* ============ Settings ops ============ */
 function saveSettings(){state.settings.linkedinToEmailDays=Math.max(0,+$('#setLi').value||3);state.settings.emailFollowupDays=Math.max(1,+$('#setEm').value||5);state.settings.maxEmails=Math.max(1,+$('#setMax').value||4);save();toast('Kadenz gespeichert','ok');}
-function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden.'))return;state={contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4}};save();closePanel();go('dashboard');toast('Alle Daten gelöscht','ok');}
+function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden.'))return;state={contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},ui:{columns:['unternehmen','branche','stage','next']}};save();closePanel();go('dashboard');toast('Alle Daten gelöscht','ok');}
 
 /* ============ Manual add ============ */
 function openManual(){const id=uid();state.contacts.push({id,anrede:'',vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
@@ -967,7 +1005,7 @@ function exportCSV(){
 function sampleCSV(){const s='Anrede;Vorname;Nachname;Unternehmen;Branche;Position;Email;LinkedIn;Telefon\nHerr;Max;Mustermann;Bau Müller GmbH;Bauunternehmen;Geschäftsführer;m.mustermann@beispiel.de;https://www.linkedin.com/in/maxmustermann;+49 170 1234567\nFrau;Sandra;Schmidt;Immo Nord AG;Immobilien;Vertriebsleiterin;s.schmidt@beispiel.de;https://www.linkedin.com/in/sandraschmidt;';download('beispiel-kontakte.csv','\uFEFF'+s);}
 function download(name,content){const blob=new Blob([content],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function backupJSON(){
-  const data={app:'akquise-cockpit',version:1,exportedAt:new Date().toISOString(),contacts:state.contacts,templates:state.templates,settings:state.settings};
+  const data={app:'akquise-cockpit',version:1,exportedAt:new Date().toISOString(),contacts:state.contacts,templates:state.templates,settings:state.settings,ui:state.ui};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='akquise-backup-'+todayISO()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast('Backup gespeichert','ok');
@@ -983,7 +1021,8 @@ function restoreJSON(){
       state={
         contacts:d.contacts,
         templates:(Array.isArray(d.templates)&&d.templates.length)?d.templates:DEFAULT_TEMPLATES,
-        settings:Object.assign({linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},d.settings||{})
+        settings:Object.assign({linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},d.settings||{}),
+        ui:(d.ui&&Array.isArray(d.ui.columns))?d.ui:{columns:['unternehmen','branche','stage','next']}
       };
       state.contacts.forEach(c=>{c.id=c.id||uid();c.log=c.log||[];if(!c.stage||!STAGES[c.stage])c.stage='neu';if(c.emailCount==null)c.emailCount=0;});
       selected=new Set();save();closePanel();go('dashboard');
@@ -1089,8 +1128,11 @@ function toast(msg,type){const t=document.createElement('div');t.className='toas
 function bindContent(){
   const si=$('#searchInput');if(si){si.oninput=e=>{filters.q=e.target.value;const p=si.selectionStart;render();const n=$('#searchInput');if(n){n.focus();n.setSelectionRange(p,p);}};}
   const fb=$('#filterBranche');if(fb)fb.onchange=e=>{filters.branche=e.target.value;render();};
+  const fp=$('#filterPosition');if(fp)fp.onchange=e=>{filters.position=e.target.value;render();};
   const fs=$('#filterStage');if(fs)fs.onchange=e=>{filters.stage=e.target.value;render();};
   const fd=$('#filterDue');if(fd)fd.onclick=()=>{filters.due=!filters.due;render();};
+  const cbtn=$('#colBtn');if(cbtn)cbtn.onclick=e=>{e.stopPropagation();colMenuOpen=!colMenuOpen;const m=$('#colMenu');if(m)m.hidden=!colMenuOpen;};
+  document.querySelectorAll('#colMenu input[data-col]').forEach(cb=>cb.onchange=()=>toggleCol(cb.dataset.col));
   // bulk selection
   const sa=$('#selAll');if(sa)sa.onchange=e=>{if(e.target.checked)lastVisibleIds.forEach(id=>selected.add(id));else lastVisibleIds.forEach(id=>selected.delete(id));render();};
   document.querySelectorAll('.row-check').forEach(cb=>cb.onchange=e=>{const id=e.target.dataset.id;if(e.target.checked)selected.add(id);else selected.delete(id);updateBulkUI();});
@@ -1111,10 +1153,11 @@ $('#importConfirm').onclick=confirmImport;
 $('#actionCancel').onclick=closeAction;$('#actionModal').onclick=e=>{if(e.target.id==='actionModal')closeAction();};
 $('#actionConfirm').onclick=()=>{if(_actionConfirm){if(_actionConfirm()===false)return;}closeAction();};
 $('#outreachModal').onclick=e=>{if(e.target.id==='outreachModal')closeOutreach();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();closeAction();closeOutreach();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeImport();closeAction();closeOutreach();if(colMenuOpen){colMenuOpen=false;const m=$('#colMenu');if(m)m.hidden=true;}}});
+document.addEventListener('click',e=>{if(colMenuOpen&&!e.target.closest('.colmenu-wrap')){colMenuOpen=false;const m=$('#colMenu');if(m)m.hidden=true;}});
 
 /* expose */
-window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;window.clearFilters=clearFilters;
 
 /* init */
 $('#appVersion').textContent='v'+APP_VERSION;

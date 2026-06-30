@@ -50,6 +50,10 @@
   .nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;padding:0 6px}
   .nav-item.active .badge{background:var(--red)}
   .nav-sep{height:1px;background:var(--line);margin:8px 4px}
+  .nav-sub{padding-left:30px;font-size:13px}
+  .nav-sub svg{width:17px;height:17px;flex-basis:17px}
+  .nav-item .count{margin-left:auto;background:var(--slate-soft);color:var(--ink-2);font-size:11px;font-weight:700;min-width:22px;height:20px;border-radius:10px;display:grid;place-items:center;padding:0 6px;font-variant-numeric:tabular-nums}
+  .nav-item.active .count{background:#cdeee2;color:var(--primary-ink)}
   .sidebar-foot{margin-top:auto;font-size:11px;color:var(--ink-3);padding:8px;line-height:1.5}
 
   .main{min-width:0;display:flex;flex-direction:column}
@@ -126,6 +130,12 @@
 
   /* Table */
   .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .seg{display:inline-flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px;margin-bottom:16px;box-shadow:var(--shadow);flex-wrap:wrap}
+  .seg-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-weight:600;font-size:13px;color:var(--ink-2);transition:.13s}
+  .seg-btn:hover{background:var(--slate-soft);color:var(--ink)}
+  .seg-btn.on{background:var(--primary-soft);color:var(--primary-ink)}
+  .seg-btn span{font-size:11.5px;font-weight:700;background:var(--slate-soft);color:var(--ink-3);padding:1px 8px;border-radius:20px;font-variant-numeric:tabular-nums}
+  .seg-btn.on span{background:#cdeee2;color:var(--primary-ink)}
   .search{flex:1;min-width:200px;position:relative}
   .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink-3);stroke-width:2}
   .search input{width:100%;padding:10px 14px 10px 40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);outline:none;transition:.13s}
@@ -350,6 +360,14 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <span>Kontakte</span>
     </button>
+    <button class="nav-item nav-sub" data-view="kontaktiert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+      <span>Kontaktiert</span><span class="count" id="navContacted">0</span>
+    </button>
+    <button class="nav-item nav-sub" data-view="nicht_kontaktiert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
+      <span>Nicht kontaktiert</span><span class="count" id="navUncontacted">0</span>
+    </button>
     <div class="nav-sep"></div>
     <button class="nav-item" data-view="vorlagen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
@@ -425,7 +443,7 @@
 "use strict";
 /* ============ State ============ */
 const KEY='akquise_cockpit_v1';
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.8.0';
 const STAGES={
   neu:{label:'Neu',cls:'s-neu'},
   linkedin:{label:'LinkedIn angefragt',cls:'s-linkedin'},
@@ -549,6 +567,8 @@ function stats(){
     react:reached?Math.round(ga/reached*100):0};
 }
 
+function isContacted(c){return !!(c.linkedinAt||(c.emailCount||0)>0||c.vernetztAt||c.repliedAt);}
+
 /* ============ Render ============ */
 let activeView='dashboard',panelId=null;
 let selected=new Set(),lastVisibleIds=[];
@@ -559,15 +579,20 @@ function rerender(){renderNav();render();if(panelId&&get(panelId))openPanel(pane
 function renderNav(){
   const due=stats().over+stats().today;const b=$('#navDue');
   if(due>0){b.style.display='grid';b.textContent=due;}else{b.style.display='none';}
+  const con=state.contacts.filter(isContacted).length;
+  const nc=$('#navContacted'),nu=$('#navUncontacted');
+  if(nc)nc.textContent=con;if(nu)nu.textContent=state.contacts.length-con;
 }
-const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
+const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],kontaktiert:['Kontaktiert','Bereits angeschriebene Kontakte'],nicht_kontaktiert:['Nicht kontaktiert','Noch offene Kontakte'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
 function go(v){activeView=v;colMenuOpen=false;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#viewTitle').textContent=TITLES[v][0];$('#viewSub').textContent=TITLES[v][1];render();window.scrollTo(0,0);}
 
 function render(){const el=$('#content');
-  if(state.contacts.length===0&&['dashboard','heute','kontakte'].includes(activeView)){el.innerHTML=emptyState();return;}
+  if(state.contacts.length===0&&['dashboard','heute','kontakte','kontaktiert','nicht_kontaktiert'].includes(activeView)){el.innerHTML=emptyState();return;}
   if(activeView==='dashboard')el.innerHTML=viewDashboard();
   else if(activeView==='heute')el.innerHTML=viewHeute();
-  else if(activeView==='kontakte')el.innerHTML=viewKontakte();
+  else if(activeView==='kontakte')el.innerHTML=viewKontakte('all');
+  else if(activeView==='kontaktiert')el.innerHTML=viewKontakte('contacted');
+  else if(activeView==='nicht_kontaktiert')el.innerHTML=viewKontakte('uncontacted');
   else if(activeView==='vorlagen')el.innerHTML=viewVorlagen();
   else if(activeView==='einstellungen')el.innerHTML=viewEinstellungen();
   bindContent();
@@ -670,11 +695,15 @@ function visCols(){if(!state.ui)state.ui={};if(!Array.isArray(state.ui.columns))
 function colOn(k){return k==='name'||visCols().includes(k);}
 function toggleCol(k){const cols=visCols();const i=cols.indexOf(k);if(i>=0)cols.splice(i,1);else cols.push(k);save();render();}
 
-function viewKontakte(){
+function viewKontakte(scope){
+  scope=scope||'all';
   selected=new Set([...selected].filter(id=>get(id)));
-  const branchen=[...new Set(state.contacts.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
-  const positionen=[...new Set(state.contacts.map(c=>(c.position||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
-  let list=state.contacts.slice();
+  let base=state.contacts.slice();
+  if(scope==='contacted')base=base.filter(isContacted);
+  else if(scope==='uncontacted')base=base.filter(c=>!isContacted(c));
+  const branchen=[...new Set(base.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
+  const positionen=[...new Set(base.map(c=>(c.position||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+  let list=base.slice();
   if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche,c.position].some(v=>(v||'').toLowerCase().includes(q)));}
   if(filters.branche)list=list.filter(c=>(c.branche||'')===filters.branche);
   if(filters.position)list=list.filter(c=>(c.position||'')===filters.position);
@@ -682,6 +711,14 @@ function viewKontakte(){
   if(filters.due)list=list.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future');
   list.sort((a,b)=>{const da=a.nextAction||'9999',db=b.nextAction||'9999';return da<db?-1:da>db?1:0;});
   lastVisibleIds=list.map(c=>c.id);
+
+  const conCount=state.contacts.filter(isContacted).length;
+  const counts={all:state.contacts.length,contacted:conCount,uncontacted:state.contacts.length-conCount};
+  const seg=`<div class="seg">
+    <button class="seg-btn ${scope==='all'?'on':''}" onclick="go('kontakte')">Alle <span>${counts.all}</span></button>
+    <button class="seg-btn ${scope==='contacted'?'on':''}" onclick="go('kontaktiert')">Kontaktiert <span>${counts.contacted}</span></button>
+    <button class="seg-btn ${scope==='uncontacted'?'on':''}" onclick="go('nicht_kontaktiert')">Nicht kontaktiert <span>${counts.uncontacted}</span></button>
+  </div>`;
 
   const actCell=c=>`<div class="row-actions">
     ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
@@ -717,7 +754,7 @@ function viewKontakte(){
     </div>
   </div>`;
 
-  return `<div class="toolbar">
+  return `${seg}<div class="toolbar">
     <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><input id="searchInput" placeholder="Name, Unternehmen, Position…" value="${esc(filters.q)}"></div>
     <select class="filter" id="filterBranche"><option value="">Alle Branchen</option>${branchen.map(b=>`<option ${filters.branche===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
     <select class="filter" id="filterPosition"><option value="">Alle Positionen</option>${positionen.map(p=>`<option ${filters.position===p?'selected':''}>${esc(p)}</option>`).join('')}</select>
@@ -729,9 +766,9 @@ function viewKontakte(){
   ${bulkBar}
   <div class="tbl-wrap"><table>
     <thead><tr>${heads}</tr></thead>
-    <tbody>${rows||`<tr><td colspan="${colCount}" style="text-align:center;color:var(--ink-3);padding:34px">Keine Treffer für deine Filter.</td></tr>`}</tbody>
+    <tbody>${rows||`<tr><td colspan="${colCount}" style="text-align:center;color:var(--ink-3);padding:34px">${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?'Keine Treffer für deine Filter.':(scope==='uncontacted'?'Alle Kontakte hier wurden bereits angeschrieben. 🎉':scope==='contacted'?'Noch wurde niemand kontaktiert.':'Keine Kontakte vorhanden.')}</td></tr>`}</tbody>
   </table></div>
-  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${state.contacts.length} Kontakten${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?` · <a href="#" onclick="clearFilters();return false;" style="font-weight:600">Filter zurücksetzen</a>`:''}</div>`;
+  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${base.length} ${scope==='contacted'?'kontaktierten ':scope==='uncontacted'?'offenen ':''}Kontakten${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?` · <a href="#" onclick="clearFilters();return false;" style="font-weight:600">Filter zurücksetzen</a>`:''}</div>`;
 }
 function clearFilters(){filters={q:'',branche:'',position:'',stage:'',due:false};render();}
 function selectedContacts(){return state.contacts.filter(c=>selected.has(c.id));}

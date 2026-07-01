@@ -136,6 +136,16 @@
   .seg-btn.on{background:var(--primary-soft);color:var(--primary-ink)}
   .seg-btn span{font-size:11.5px;font-weight:700;background:var(--slate-soft);color:var(--ink-3);padding:1px 8px;border-radius:20px;font-variant-numeric:tabular-nums}
   .seg-btn.on span{background:#cdeee2;color:var(--primary-ink)}
+  .tag-cell{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  .tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;background:var(--indigo-soft);color:var(--indigo);padding:3px 9px;border-radius:20px;cursor:pointer;white-space:nowrap}
+  .tag:hover{filter:brightness(.97)}
+  .tag-add{font-size:11px;font-weight:700;color:var(--ink-3);background:var(--slate-soft);padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .tag-add:hover{color:var(--ink);background:#e4e9f0}
+  .tag-edit{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .tag-rem{background:var(--indigo-soft);color:var(--indigo)}
+  .tag-rem b{font-weight:700;opacity:.6}
+  .tag-rem:hover b{opacity:1;color:var(--red)}
+  .parked-badge{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;background:#EEF0F4;color:#7A8AA0;padding:2px 8px;border-radius:20px;vertical-align:middle}
   .search{flex:1;min-width:200px;position:relative}
   .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink-3);stroke-width:2}
   .search input{width:100%;padding:10px 14px 10px 40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);outline:none;transition:.13s}
@@ -368,6 +378,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg>
       <span>Nicht kontaktiert</span><span class="count" id="navUncontacted">0</span>
     </button>
+    <button class="nav-item nav-sub" data-view="zurueckgestellt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+      <span>Zurückgestellt</span><span class="count" id="navParked">0</span>
+    </button>
     <div class="nav-sep"></div>
     <button class="nav-item" data-view="vorlagen">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>
@@ -443,7 +457,7 @@
 "use strict";
 /* ============ State ============ */
 const KEY='akquise_cockpit_v1';
-const APP_VERSION='1.8.0';
+const APP_VERSION='1.9.0';
 const STAGES={
   neu:{label:'Neu',cls:'s-neu'},
   linkedin:{label:'LinkedIn angefragt',cls:'s-linkedin'},
@@ -548,6 +562,18 @@ function saveNA(id){const d=$('#naDate'),t=$('#naType');setNextAction(id,d?d.val
 function clearNA(id){setNextAction(id,null);}
 function snooze(id,n){const c=get(id);if(!c)return;const base=c.nextAction&&c.nextAction>todayISO()?c.nextAction:todayISO();c.nextAction=addDaysISO(base,n);logAdd(c,`Erinnerung um ${n} Tage verschoben`);save();toast(`Verschoben auf ${fmtDate(c.nextAction)}`,'ok');rerender();}
 function get(id){return state.contacts.find(c=>c.id===id);}
+function normTag(t){return (t||'').toString().trim();}
+function allTags(list){const s=new Set();(list||state.contacts).forEach(c=>(c.tags||[]).forEach(t=>s.add(t)));return [...s].sort((a,b)=>a.localeCompare(b,'de'));}
+function addTag(id,tag){const c=get(id);tag=normTag(tag);if(!c||!tag)return;c.tags=c.tags||[];if(!c.tags.some(x=>x.toLowerCase()===tag.toLowerCase())){c.tags.push(tag);logAdd(c,'Tag „'+tag+'" hinzugefügt');save();rerender();}}
+function removeTag(id,tag){const c=get(id);if(!c)return;c.tags=(c.tags||[]).filter(x=>x!==tag);logAdd(c,'Tag „'+tag+'" entfernt');save();rerender();}
+function setParked(id,val){const c=get(id);if(!c)return;c.parked=!!val;logAdd(c,val?'Zurückgestellt':'Reaktiviert');save();toast(val?'Zurückgestellt':'Reaktiviert','ok');rerender();}
+function bulkPark(val){if(!selected.size)return;const n=selected.size;selectedContacts().forEach(c=>{c.parked=!!val;logAdd(c,val?'Zurückgestellt (Massenbearbeitung)':'Reaktiviert (Massenbearbeitung)');});if(val)selected.clear();save();render();toast(`${n} Kontakte ${val?'zurückgestellt':'reaktiviert'}`,'ok');}
+function bulkTag(){if(!selected.size)return;const n=selected.size;const dl=allTags().map(t=>`<option value="${esc(t)}">`).join('');
+  openAction('Tag zuweisen',`<div class="field"><label>Tag für ${n} ausgewählte Kontakte</label><input id="actTag" list="tagList" placeholder="z. B. Später, VIP, Messe Hannover"><datalist id="tagList">${dl}</datalist></div>`,()=>{const t=normTag($('#actTag').value);if(!t){toast('Bitte Tag eingeben','warn');return false;}selectedContacts().forEach(c=>{c.tags=c.tags||[];if(!c.tags.some(x=>x.toLowerCase()===t.toLowerCase()))c.tags.push(t);logAdd(c,'Tag „'+t+'" (Massenbearbeitung)');});save();render();toast(`Tag „${t}" zu ${n} Kontakten hinzugefügt`,'ok');},'Zuweisen');}
+function openTagModal(id){const c=get(id);if(!c)return;const dl=allTags().map(t=>`<option value="${esc(t)}">`).join('');
+  openAction('Tag zuweisen',`<div class="field"><label>Tag für ${esc(fullName(c))}</label><input id="actTag" list="tagList" placeholder="z. B. Später, VIP, Messe Hannover"><datalist id="tagList">${dl}</datalist></div>${(c.tags&&c.tags.length)?`<div style="font-size:12px;color:var(--ink-3);margin-top:6px">Bereits: ${c.tags.map(esc).join(', ')}</div>`:''}`,()=>{const t=normTag($('#actTag').value);if(!t){toast('Bitte Tag eingeben','warn');return false;}addTag(id,t);toast(`Tag „${t}" hinzugefügt`,'ok');},'Zuweisen');}
+function quickTagFilter(t){filters.tag=t;render();}
+function addTagFromPanel(id){const inp=$('#tagInput');if(!inp)return;const t=normTag(inp.value);if(!t){toast('Bitte Tag eingeben','warn');return;}addTag(id,t);}
 
 /* ============ Derived ============ */
 function dueContacts(){return state.contacts.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future'&&dueState(c.nextAction)!=='none').sort((a,b)=>a.nextAction<b.nextAction?-1:1);}
@@ -572,27 +598,30 @@ function isContacted(c){return !!(c.linkedinAt||(c.emailCount||0)>0||c.vernetztA
 /* ============ Render ============ */
 let activeView='dashboard',panelId=null;
 let selected=new Set(),lastVisibleIds=[];
-let filters={q:'',branche:'',position:'',stage:'',due:false};
+let filters={q:'',branche:'',position:'',stage:'',tag:'',due:false};
 let colMenuOpen=false;
 
 function rerender(){renderNav();render();if(panelId&&get(panelId))openPanel(panelId,true);}
 function renderNav(){
   const due=stats().over+stats().today;const b=$('#navDue');
   if(due>0){b.style.display='grid';b.textContent=due;}else{b.style.display='none';}
-  const con=state.contacts.filter(isContacted).length;
-  const nc=$('#navContacted'),nu=$('#navUncontacted');
-  if(nc)nc.textContent=con;if(nu)nu.textContent=state.contacts.length-con;
+  const parked=state.contacts.filter(c=>c.parked).length;
+  const nonParked=state.contacts.filter(c=>!c.parked);
+  const con=nonParked.filter(isContacted).length;
+  const nc=$('#navContacted'),nu=$('#navUncontacted'),np=$('#navParked');
+  if(nc)nc.textContent=con;if(nu)nu.textContent=nonParked.length-con;if(np)np.textContent=parked;
 }
-const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],kontaktiert:['Kontaktiert','Bereits angeschriebene Kontakte'],nicht_kontaktiert:['Nicht kontaktiert','Noch offene Kontakte'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
+const TITLES={dashboard:['Dashboard','Überblick über deine Akquise'],heute:['Heute','Deine fälligen Aufgaben'],kontakte:['Kontakte','Alle Kontakte verwalten'],kontaktiert:['Kontaktiert','Bereits angeschriebene Kontakte'],nicht_kontaktiert:['Nicht kontaktiert','Noch offene Kontakte'],zurueckgestellt:['Zurückgestellt','Später oder aussortierte Kontakte'],vorlagen:['Vorlagen','Nachrichten für LinkedIn & E-Mail'],einstellungen:['Einstellungen','Kadenz & Datenverwaltung']};
 function go(v){activeView=v;colMenuOpen=false;document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));$('#viewTitle').textContent=TITLES[v][0];$('#viewSub').textContent=TITLES[v][1];render();window.scrollTo(0,0);}
 
 function render(){const el=$('#content');
-  if(state.contacts.length===0&&['dashboard','heute','kontakte','kontaktiert','nicht_kontaktiert'].includes(activeView)){el.innerHTML=emptyState();return;}
+  if(state.contacts.length===0&&['dashboard','heute','kontakte','kontaktiert','nicht_kontaktiert','zurueckgestellt'].includes(activeView)){el.innerHTML=emptyState();return;}
   if(activeView==='dashboard')el.innerHTML=viewDashboard();
   else if(activeView==='heute')el.innerHTML=viewHeute();
   else if(activeView==='kontakte')el.innerHTML=viewKontakte('all');
   else if(activeView==='kontaktiert')el.innerHTML=viewKontakte('contacted');
   else if(activeView==='nicht_kontaktiert')el.innerHTML=viewKontakte('uncontacted');
+  else if(activeView==='zurueckgestellt')el.innerHTML=viewKontakte('parked');
   else if(activeView==='vorlagen')el.innerHTML=viewVorlagen();
   else if(activeView==='einstellungen')el.innerHTML=viewEinstellungen();
   bindContent();
@@ -684,13 +713,14 @@ const COLS=[
   {key:'branche',label:'Branche',cell:c=>esc(c.branche||'—')},
   {key:'position',label:'Position',cell:c=>esc(c.position||'—')},
   {key:'anrede',label:'Anrede',cell:c=>esc(c.anrede||'—')},
+  {key:'tags',label:'Tags',cell:c=>`<div class="tag-cell">${(c.tags||[]).map(t=>`<span class="tag" onclick="event.stopPropagation();quickTagFilter('${esc(t).replace(/'/g,"\\'")}')">${esc(t)}</span>`).join('')}<button class="tag-add" onclick="event.stopPropagation();openTagModal('${c.id}')">+ Tag</button></div>`},
   {key:'email',label:'E-Mail',cell:c=>c.email?`<a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a>`:'<span class="due-future">–</span>'},
   {key:'telefon',label:'Telefon',cell:c=>esc(c.telefon||'—')},
   {key:'linkedin',label:'LinkedIn',cell:c=>c.linkedin?`<a href="${esc(normUrl(c.linkedin))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Profil ↗</a>`:'<span class="due-future">–</span>'},
-  {key:'stage',label:'Status',cell:c=>`<span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span>`},
+  {key:'stage',label:'Status',cell:c=>`<span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span>${c.parked?' <span class="parked-badge">zurückgestellt</span>':''}`},
   {key:'next',label:'Nächste Aktion',cell:c=>{const ds=dueState(c.nextAction);return c.nextAction?`<span class="due-pill ${ds==='over'?'due-over':ds==='today'?'due-today':'due-future'}">${fmtDate(c.nextAction)}</span><div class="cell-sub">${esc(c.nextActionType||'')}</div>`:'<span class="due-future">–</span>';}}
 ];
-function defaultCols(){return ['unternehmen','branche','stage','next'];}
+function defaultCols(){return ['unternehmen','branche','tags','stage','next'];}
 function visCols(){if(!state.ui)state.ui={};if(!Array.isArray(state.ui.columns))state.ui.columns=defaultCols();return state.ui.columns;}
 function colOn(k){return k==='name'||visCols().includes(k);}
 function toggleCol(k){const cols=visCols();const i=cols.indexOf(k);if(i>=0)cols.splice(i,1);else cols.push(k);save();render();}
@@ -699,30 +729,37 @@ function viewKontakte(scope){
   scope=scope||'all';
   selected=new Set([...selected].filter(id=>get(id)));
   let base=state.contacts.slice();
-  if(scope==='contacted')base=base.filter(isContacted);
-  else if(scope==='uncontacted')base=base.filter(c=>!isContacted(c));
+  if(scope==='contacted')base=base.filter(c=>!c.parked&&isContacted(c));
+  else if(scope==='uncontacted')base=base.filter(c=>!c.parked&&!isContacted(c));
+  else if(scope==='parked')base=base.filter(c=>c.parked);
   const branchen=[...new Set(base.map(c=>(c.branche||'').trim()).filter(Boolean))].sort();
   const positionen=[...new Set(base.map(c=>(c.position||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'de'));
+  const tags=allTags(base);
   let list=base.slice();
-  if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche,c.position].some(v=>(v||'').toLowerCase().includes(q)));}
+  if(filters.q){const q=filters.q.toLowerCase();list=list.filter(c=>[c.vorname,c.nachname,c.unternehmen,c.email,c.branche,c.position].concat(c.tags||[]).some(v=>(v||'').toLowerCase().includes(q)));}
   if(filters.branche)list=list.filter(c=>(c.branche||'')===filters.branche);
   if(filters.position)list=list.filter(c=>(c.position||'')===filters.position);
+  if(filters.tag)list=list.filter(c=>(c.tags||[]).includes(filters.tag));
   if(filters.stage)list=list.filter(c=>c.stage===filters.stage);
   if(filters.due)list=list.filter(c=>c.nextAction&&dueState(c.nextAction)!=='future');
   list.sort((a,b)=>{const da=a.nextAction||'9999',db=b.nextAction||'9999';return da<db?-1:da>db?1:0;});
   lastVisibleIds=list.map(c=>c.id);
 
-  const conCount=state.contacts.filter(isContacted).length;
-  const counts={all:state.contacts.length,contacted:conCount,uncontacted:state.contacts.length-conCount};
+  const parkedCount=state.contacts.filter(c=>c.parked).length;
+  const nonParked=state.contacts.filter(c=>!c.parked);
+  const conCount=nonParked.filter(isContacted).length;
+  const counts={all:state.contacts.length,contacted:conCount,uncontacted:nonParked.length-conCount,parked:parkedCount};
   const seg=`<div class="seg">
     <button class="seg-btn ${scope==='all'?'on':''}" onclick="go('kontakte')">Alle <span>${counts.all}</span></button>
     <button class="seg-btn ${scope==='contacted'?'on':''}" onclick="go('kontaktiert')">Kontaktiert <span>${counts.contacted}</span></button>
     <button class="seg-btn ${scope==='uncontacted'?'on':''}" onclick="go('nicht_kontaktiert')">Nicht kontaktiert <span>${counts.uncontacted}</span></button>
+    <button class="seg-btn ${scope==='parked'?'on':''}" onclick="go('zurueckgestellt')">Zurückgestellt <span>${counts.parked}</span></button>
   </div>`;
 
   const actCell=c=>`<div class="row-actions">
     ${c.linkedin?`<button class="btn-icon act-li" title="LinkedIn öffnen + markieren" onclick="doLinkedIn('${c.id}')"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM8.34 18H5.67V9.5h2.67V18zM7 8.31a1.55 1.55 0 1 1 0-3.1 1.55 1.55 0 0 1 0 3.1zM18.34 18h-2.67v-4.13c0-1.05-.4-1.64-1.23-1.64-.66 0-1.05.45-1.23.88-.06.16-.05.37-.05.59V18h-2.67s.04-7.58 0-8.5h2.67v1.2c.35-.55.98-1.32 2.4-1.32 1.75 0 3.08 1.14 3.08 3.6V18z"/></svg></button>`:`<button class="btn-icon" disabled style="opacity:.3" title="Kein LinkedIn-Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`}
     <button class="btn-icon act-mail" title="E-Mail-Sequenz öffnen" onclick="openOutreach('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg></button>
+    <button class="btn-icon" title="Tag zuweisen" onclick="openTagModal('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>
     <button class="btn-icon" title="Details" onclick="openPanel('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="12" r="1.6"/></svg></button>
   </div>`;
   const nameCell=c=>`<div class="cell-name" onclick="openPanel('${c.id}')">${esc(fullName(c))}</div>${(!colOn('position')&&c.position)?`<div class="cell-sub">${esc(c.position)}</div>`:''}`;
@@ -740,8 +777,10 @@ function viewKontakte(scope){
   const bulkBar=`<div class="bulk-bar" id="bulkBar">
     <span class="bulk-count" id="bulkCount"><b>0</b> ausgewählt</span>
     <select id="bulkStage"><option value="">Status setzen…</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select>
+    <button class="bulk-btn" id="bulkTag">Tag zuweisen</button>
     <button class="bulk-btn" id="bulkNote">Notiz anhängen</button>
     <button class="bulk-btn" id="bulkNext">Nächste Aktion</button>
+    <button class="bulk-btn" id="bulkPark">${scope==='parked'?'Reaktivieren':'Zurückstellen'}</button>
     <button class="bulk-btn danger" id="bulkDelete">Löschen</button>
     <button class="bulk-btn ghost" id="bulkClear">Auswahl aufheben</button>
   </div>`;
@@ -759,6 +798,7 @@ function viewKontakte(scope){
     <select class="filter" id="filterBranche"><option value="">Alle Branchen</option>${branchen.map(b=>`<option ${filters.branche===b?'selected':''}>${esc(b)}</option>`).join('')}</select>
     <select class="filter" id="filterPosition"><option value="">Alle Positionen</option>${positionen.map(p=>`<option ${filters.position===p?'selected':''}>${esc(p)}</option>`).join('')}</select>
     <select class="filter" id="filterStage"><option value="">Alle Status</option>${Object.entries(STAGES).map(([k,v])=>`<option value="${k}" ${filters.stage===k?'selected':''}>${v.label}</option>`).join('')}</select>
+    <select class="filter" id="filterTag"><option value="">Alle Tags</option>${tags.map(t=>`<option ${filters.tag===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
     <button class="btn btn-ghost" id="filterDue" style="${filters.due?'border-color:var(--amber);color:var(--amber);background:var(--amber-soft)':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>Nur fällig</button>
     ${colMenu}
     <button class="btn btn-ghost" onclick="openManual()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>Kontakt</button>
@@ -766,11 +806,11 @@ function viewKontakte(scope){
   ${bulkBar}
   <div class="tbl-wrap"><table>
     <thead><tr>${heads}</tr></thead>
-    <tbody>${rows||`<tr><td colspan="${colCount}" style="text-align:center;color:var(--ink-3);padding:34px">${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?'Keine Treffer für deine Filter.':(scope==='uncontacted'?'Alle Kontakte hier wurden bereits angeschrieben. 🎉':scope==='contacted'?'Noch wurde niemand kontaktiert.':'Keine Kontakte vorhanden.')}</td></tr>`}</tbody>
+    <tbody>${rows||`<tr><td colspan="${colCount}" style="text-align:center;color:var(--ink-3);padding:34px">${(filters.branche||filters.position||filters.tag||filters.stage||filters.due||filters.q)?'Keine Treffer für deine Filter.':(scope==='uncontacted'?'Alle Kontakte hier wurden bereits angeschrieben. 🎉':scope==='contacted'?'Noch wurde niemand kontaktiert.':scope==='parked'?'Keine zurückgestellten Kontakte. Über „Zurückstellen" schiebst du Kontakte hierher.':'Keine Kontakte vorhanden.')}</td></tr>`}</tbody>
   </table></div>
-  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${base.length} ${scope==='contacted'?'kontaktierten ':scope==='uncontacted'?'offenen ':''}Kontakten${(filters.branche||filters.position||filters.stage||filters.due||filters.q)?` · <a href="#" onclick="clearFilters();return false;" style="font-weight:600">Filter zurücksetzen</a>`:''}</div>`;
+  <div style="margin-top:12px;font-size:12.5px;color:var(--ink-3)">${list.length} von ${base.length} ${scope==='contacted'?'kontaktierten ':scope==='uncontacted'?'offenen ':scope==='parked'?'zurückgestellten ':''}Kontakten${(filters.branche||filters.position||filters.tag||filters.stage||filters.due||filters.q)?` · <a href="#" onclick="clearFilters();return false;" style="font-weight:600">Filter zurücksetzen</a>`:''}</div>`;
 }
-function clearFilters(){filters={q:'',branche:'',position:'',stage:'',due:false};render();}
+function clearFilters(){filters={q:'',branche:'',position:'',stage:'',tag:'',due:false};render();}
 function selectedContacts(){return state.contacts.filter(c=>selected.has(c.id));}
 function updateBulkUI(){const bar=$('#bulkBar');if(!bar)return;const n=selected.size;bar.style.display=n?'flex':'none';
   const cnt=$('#bulkCount');if(cnt)cnt.innerHTML=`<b>${n}</b> ausgewählt`;
@@ -830,7 +870,7 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
     <div class="panel-head">
       <div class="avatar">${initials(c)}</div>
       <div style="min-width:0"><h3>${esc(fullName(c))}</h3><div class="ph-sub">${[esc(c.position),esc(c.unternehmen)].filter(Boolean).join(' · ')||'—'}</div>
-        <div style="margin-top:8px"><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span></div></div>
+        <div style="margin-top:8px"><span class="badge-stage ${STAGES[c.stage].cls}"><span class="dot"></span>${STAGES[c.stage].label}</span>${c.parked?' <span class="parked-badge">zurückgestellt</span>':''}</div></div>
       <button class="panel-close" onclick="closePanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="panel-body">
@@ -857,6 +897,11 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
 
       <div><div class="psec-title">Status setzen</div><div class="stage-pick">${stageOpts}</div></div>
 
+      <div><div class="psec-title">Tags</div>
+        <div class="tag-edit">${(c.tags&&c.tags.length)?c.tags.map(t=>`<span class="tag tag-rem" onclick="removeTag('${id}','${esc(t).replace(/'/g,"\\'")}')">${esc(t)} <b>×</b></span>`).join(''):'<span style="color:var(--ink-3);font-size:12.5px">Noch keine Tags</span>'}</div>
+        <div style="display:flex;gap:7px;margin-top:9px"><input id="tagInput" list="tagListPanel" placeholder="Tag eingeben…" style="flex:1;padding:8px 11px;border:1px solid var(--line);border-radius:9px;outline:none"><datalist id="tagListPanel">${allTags().map(t=>`<option value="${esc(t)}">`).join('')}</datalist><button class="btn btn-sm btn-ghost" onclick="addTagFromPanel('${id}')">Hinzufügen</button></div>
+      </div>
+
       <div><div class="psec-title">Kontaktdaten</div>
         <div class="field"><label>Anrede</label><select data-c="anrede"><option value="" ${!c.anrede?'selected':''}>— keine —</option><option ${c.anrede==='Herr'?'selected':''}>Herr</option><option ${c.anrede==='Frau'?'selected':''}>Frau</option></select></div>
         <div class="grid-fld"><div class="field"><label>Vorname</label><input data-c="vorname" value="${esc(c.vorname)}"></div><div class="field"><label>Nachname</label><input data-c="nachname" value="${esc(c.nachname)}"></div></div>
@@ -871,7 +916,10 @@ function openPanel(id,keep){const c=get(id);if(!c)return;panelId=id;
 
       <div><div class="psec-title">Verlauf</div><div class="log">${logHtml}</div></div>
 
-      <div style="border-top:1px solid var(--line);padding-top:14px"><button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="delContact('${id}')">Kontakt löschen</button></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="setParked('${id}',${c.parked?'false':'true'})">${c.parked?'Reaktivieren':'Zurückstellen'}</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);margin-left:auto" onclick="delContact('${id}')">Kontakt löschen</button>
+      </div>
     </div>`;
   $('#panel').classList.add('open');$('#overlay').classList.add('open');
 }
@@ -892,7 +940,7 @@ function saveSettings(){state.settings.linkedinToEmailDays=Math.max(0,+$('#setLi
 function wipe(){if(!confirm('Wirklich ALLE Daten löschen? Das kann nicht rückgängig gemacht werden.'))return;state={contacts:[],templates:DEFAULT_TEMPLATES,settings:{linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},ui:{columns:['unternehmen','branche','stage','next']}};save();closePanel();go('dashboard');toast('Alle Daten gelöscht','ok');}
 
 /* ============ Manual add ============ */
-function openManual(){const id=uid();state.contacts.push({id,anrede:'',vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
+function openManual(){const id=uid();state.contacts.push({id,anrede:'',vorname:'',nachname:'',unternehmen:'',branche:'',email:'',linkedin:'',telefon:'',position:'',notizen:'',tags:[],parked:false,stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[],createdAt:Date.now()});save();openPanel(id);}
 
 /* ============ Import (CSV + Excel + manuelle Zuordnung) ============ */
 const FIELD_ALIASES={
@@ -905,9 +953,10 @@ const FIELD_ALIASES={
   linkedin:['linkedin','linkedinurl','linkedinprofil','linkedinlink','linkedinprofile','profil','profile','liurl'],
   telefon:['telefon','phone','tel','mobil','mobile','telefonnummer','rufnummer','phonenumber'],
   position:['position','title','jobtitle','rolle','funktion','job','titel'],
-  notizen:['notizen','notes','notiz','anmerkung','bemerkung','comment','kommentar']
+  notizen:['notizen','notes','notiz','anmerkung','bemerkung','comment','kommentar'],
+  tags:['tags','tag','labels','label','kategorie','category','schlagwort','schlagworte']
 };
-const IMPORT_FIELDS=[['anrede','Anrede (Herr/Frau)',0],['vorname','Vorname',1],['nachname','Nachname',1],['unternehmen','Unternehmen',0],['branche','Branche',0],['email','E-Mail',0],['linkedin','LinkedIn-URL',0],['telefon','Telefon',0],['position','Position',0],['notizen','Notizen',0]];
+const IMPORT_FIELDS=[['anrede','Anrede (Herr/Frau)',0],['vorname','Vorname',1],['nachname','Nachname',1],['unternehmen','Unternehmen',0],['branche','Branche',0],['email','E-Mail',0],['linkedin','LinkedIn-URL',0],['telefon','Telefon',0],['position','Position',0],['tags','Tags',0],['notizen','Notizen',0]];
 function normHead(h){return (h||'').toString().toLowerCase().replace(/[\s._\-\/]/g,'').replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');}
 function detectDelim(line){const c=(line.match(/,/g)||[]).length,s=(line.match(/;/g)||[]).length,t=(line.match(/\t/g)||[]).length;if(t>=c&&t>=s)return '\t';return s>c?';':',';}
 function parseCSV(text){
@@ -1006,11 +1055,14 @@ function renderImportMapping(){
     <div class="imp-bar">${sheetSel}<label class="imp-toggle"><input type="checkbox" ${pendingImport.hasHeader?'checked':''} onchange="toggleHeader(this.checked)"> Erste Zeile enthält Überschriften</label></div>
     <div class="psec-title" style="margin:6px 0 10px">Spalten zuordnen <span style="text-transform:none;letter-spacing:0;color:var(--ink-3);font-weight:500">(• = empfohlen)</span></div>
     <div class="map-grid">${mapRows}</div>
+    <div class="psec-title" style="margin:16px 0 8px">Tag für alle importierten Kontakte <span style="text-transform:none;letter-spacing:0;color:var(--ink-3);font-weight:500">(optional)</span></div>
+    <input id="impTagAll" list="impTagList" value="${esc(pendingImport.tagAll||'')}" oninput="setImpTag(this.value)" placeholder="z. B. Messe Hannover, Liste März" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;outline:none"><datalist id="impTagList">${allTags().map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
     <div class="psec-title" style="margin:18px 0 8px">Vorschau</div>${prev}
     <div id="impWarn"></div>`;
   updateImportValidity();
 }
 function onMapChange(sel){pendingImport.map[sel.dataset.field]=sel.value===''?null:+sel.value;updateImportValidity();}
+function setImpTag(v){if(pendingImport)pendingImport.tagAll=v;}
 function toggleHeader(on){pendingImport.hasHeader=on;pendingImport.map=on?autoMap(importView().headers):{};renderImportMapping();}
 function switchSheet(name){loadSheet(name);}
 function updateImportValidity(){const m=pendingImport.map||{};const ok=(m.vorname!=null||m.nachname!=null);
@@ -1020,6 +1072,7 @@ function updateImportValidity(){const m=pendingImport.map||{};const ok=(m.vornam
 function confirmImport(){if(!pendingImport)return;const{dataRows}=importView();const map=pendingImport.map||{};
   if(map.vorname==null&&map.nachname==null){toast('Bitte Vorname oder Nachname zuordnen','warn');return;}
   let added=0,dups=0;
+  const tagAll=normTag(pendingImport.tagAll);
   const existing=new Set(state.contacts.map(c=>(c.email||'').toLowerCase()).filter(Boolean));
   const existingLi=new Set(state.contacts.map(c=>(c.linkedin||'').toLowerCase()).filter(Boolean));
   dataRows.forEach(row=>{const g=f=>map[f]!=null?String(row[map[f]]==null?'':row[map[f]]).trim():'';
@@ -1027,15 +1080,17 @@ function confirmImport(){if(!pendingImport)return;const{dataRows}=importView();c
     const email=g('email').toLowerCase(),li=g('linkedin').toLowerCase();
     if(email&&existing.has(email)){dups++;return;}
     if(!email&&li&&existingLi.has(li)){dups++;return;}
-    state.contacts.push({id:uid(),anrede:normAnrede(g('anrede')),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
+    const tags=[];g('tags').split(/[;,]/).map(normTag).filter(Boolean).forEach(t=>{if(!tags.some(x=>x.toLowerCase()===t.toLowerCase()))tags.push(t);});
+    if(tagAll&&!tags.some(x=>x.toLowerCase()===tagAll.toLowerCase()))tags.push(tagAll);
+    state.contacts.push({id:uid(),anrede:normAnrede(g('anrede')),vorname:vor,nachname:nach,unternehmen:g('unternehmen'),branche:g('branche'),email:g('email'),linkedin:g('linkedin'),telefon:g('telefon'),position:g('position'),notizen:g('notizen'),tags,parked:false,stage:'neu',linkedinAt:null,vernetztAt:null,emailCount:0,lastEmailAt:null,repliedAt:null,nextAction:null,nextActionType:null,log:[{t:Date.now(),text:'Importiert'}],createdAt:Date.now()});
     if(email)existing.add(email);if(li)existingLi.add(li);added++;});
   save();closeImport();go('kontakte');toast(`${added} Kontakte importiert${dups?` · ${dups} Duplikate übersprungen`:''}`,'ok');
 }
 function exportCSV(){
-  const cols=['anrede','vorname','nachname','unternehmen','branche','position','email','linkedin','telefon','stage','linkedinAt','vernetztAt','emailCount','lastEmailAt','repliedAt','nextAction','nextActionType','notizen'];
+  const cols=['anrede','vorname','nachname','unternehmen','branche','position','email','linkedin','telefon','tags','parked','stage','linkedinAt','vernetztAt','emailCount','lastEmailAt','repliedAt','nextAction','nextActionType','notizen'];
   const head=cols.join(';');
   const esc2=v=>{v=v==null?'':String(v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const lines=state.contacts.map(c=>cols.map(k=>{let v=c[k];if(['linkedinAt','vernetztAt','lastEmailAt','repliedAt'].includes(k)&&v)v=new Date(v).toISOString();if(k==='stage'&&v)v=STAGES[v]?STAGES[v].label:v;return esc2(v);}).join(';'));
+  const lines=state.contacts.map(c=>cols.map(k=>{let v=c[k];if(k==='tags')v=(c.tags||[]).join(', ');else if(k==='parked')v=c.parked?'ja':'';else if(['linkedinAt','vernetztAt','lastEmailAt','repliedAt'].includes(k)&&v)v=new Date(v).toISOString();else if(k==='stage'&&v)v=STAGES[v]?STAGES[v].label:v;return esc2(v);}).join(';'));
   download('akquise-export-'+todayISO()+'.csv','\uFEFF'+head+'\n'+lines.join('\n'));
   toast('Export erstellt','ok');
 }
@@ -1061,7 +1116,7 @@ function restoreJSON(){
         settings:Object.assign({linkedinToEmailDays:3,emailFollowupDays:5,maxEmails:4},d.settings||{}),
         ui:(d.ui&&Array.isArray(d.ui.columns))?d.ui:{columns:['unternehmen','branche','stage','next']}
       };
-      state.contacts.forEach(c=>{c.id=c.id||uid();c.log=c.log||[];if(!c.stage||!STAGES[c.stage])c.stage='neu';if(c.emailCount==null)c.emailCount=0;});
+      state.contacts.forEach(c=>{c.id=c.id||uid();c.log=c.log||[];c.tags=Array.isArray(c.tags)?c.tags:[];c.parked=!!c.parked;if(!c.stage||!STAGES[c.stage])c.stage='neu';if(c.emailCount==null)c.emailCount=0;});
       selected=new Set();save();closePanel();go('dashboard');
       toast(`${state.contacts.length} Kontakte wiederhergestellt`,'ok');
     }catch(err){toast('Datei ist kein gültiges Backup','warn');}};
@@ -1167,6 +1222,7 @@ function bindContent(){
   const fb=$('#filterBranche');if(fb)fb.onchange=e=>{filters.branche=e.target.value;render();};
   const fp=$('#filterPosition');if(fp)fp.onchange=e=>{filters.position=e.target.value;render();};
   const fs=$('#filterStage');if(fs)fs.onchange=e=>{filters.stage=e.target.value;render();};
+  const ft=$('#filterTag');if(ft)ft.onchange=e=>{filters.tag=e.target.value;render();};
   const fd=$('#filterDue');if(fd)fd.onclick=()=>{filters.due=!filters.due;render();};
   const cbtn=$('#colBtn');if(cbtn)cbtn.onclick=e=>{e.stopPropagation();colMenuOpen=!colMenuOpen;const m=$('#colMenu');if(m)m.hidden=!colMenuOpen;};
   document.querySelectorAll('#colMenu input[data-col]').forEach(cb=>cb.onchange=()=>toggleCol(cb.dataset.col));
@@ -1174,8 +1230,10 @@ function bindContent(){
   const sa=$('#selAll');if(sa)sa.onchange=e=>{if(e.target.checked)lastVisibleIds.forEach(id=>selected.add(id));else lastVisibleIds.forEach(id=>selected.delete(id));render();};
   document.querySelectorAll('.row-check').forEach(cb=>cb.onchange=e=>{const id=e.target.dataset.id;if(e.target.checked)selected.add(id);else selected.delete(id);updateBulkUI();});
   const bst=$('#bulkStage');if(bst)bst.onchange=e=>{bulkStageApply(e.target.value);};
+  const btg=$('#bulkTag');if(btg)btg.onclick=bulkTag;
   const bn=$('#bulkNote');if(bn)bn.onclick=bulkNote;
   const bx=$('#bulkNext');if(bx)bx.onclick=bulkNext;
+  const bpk=$('#bulkPark');if(bpk)bpk.onclick=()=>bulkPark(activeView!=='zurueckgestellt');
   const bd=$('#bulkDelete');if(bd)bd.onclick=bulkDelete;
   const bc=$('#bulkClear');if(bc)bc.onclick=()=>{selected.clear();render();};
   // templates: save edits live so nothing is lost on add/delete/navigation
@@ -1194,7 +1252,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeI
 document.addEventListener('click',e=>{if(colMenuOpen&&!e.target.closest('.colmenu-wrap')){colMenuOpen=false;const m=$('#colMenu');if(m)m.hidden=true;}});
 
 /* expose */
-window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;window.clearFilters=clearFilters;
+window.go=go;window.openPanel=openPanel;window.closePanel=closePanel;window.doLinkedIn=doLinkedIn;window.doEmail=doEmail;window.doAccepted=doAccepted;window.doReplied=doReplied;window.setStage=setStage;window.snooze=snooze;window.savePanel=savePanel;window.delContact=delContact;window.sendEmailFromPanel=sendEmailFromPanel;window.saveTemplates=saveTemplates;window.addTemplate=addTemplate;window.delTemplate=delTemplate;window.insVar=insVar;window.saveSettings=saveSettings;window.wipe=wipe;window.openManual=openManual;window.openImport=openImport;window.exportCSV=exportCSV;window.onMapChange=onMapChange;window.toggleHeader=toggleHeader;window.switchSheet=switchSheet;window.renderImportStart=renderImportStart;window.naPreset=naPreset;window.saveNA=saveNA;window.clearNA=clearNA;window.backupJSON=backupJSON;window.restoreJSON=restoreJSON;window.openOutreach=openOutreach;window.closeOutreach=closeOutreach;window.toggleOpen=toggleOpen;window.toggleLinkedIn=toggleLinkedIn;window.toggleEmail=toggleEmail;window.copyLi=copyLi;window.copyMail=copyMail;window.copyAll=copyAll;window.mailtoStep=mailtoStep;window.openProfile=openProfile;window.clearFilters=clearFilters;window.openTagModal=openTagModal;window.quickTagFilter=quickTagFilter;window.removeTag=removeTag;window.addTagFromPanel=addTagFromPanel;window.setParked=setParked;window.bulkTag=bulkTag;window.setImpTag=setImpTag;
 
 /* init */
 $('#appVersion').textContent='v'+APP_VERSION;
